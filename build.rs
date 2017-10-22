@@ -8,6 +8,7 @@ fn main() {
     println!("cargo:rustc-link-lib=lammps");
 
     if cfg!(not(feature = "system-mpi")) {
+        // Forcibly place our own mpi.h as the highest priority include path.
         let path_separator = ":"; // FIXME: windows?
         let path = match env::var("C_INCLUDE_PATH") {
             Ok(p) => p,
