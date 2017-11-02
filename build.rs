@@ -23,10 +23,10 @@ fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     let mut gen = ::bindgen::Builder::default();
     gen = gen.header("src/wrapper.h");
-    gen = gen.whitelisted_function("lammps.*");
+    gen = gen.whitelist_function("lammps.*");
 
     if cfg!(not(feature = "system-mpi")) {
-        gen = gen.hide_type("([oOpP])?[mM][pP][iI].*");
+        gen = gen.blacklist_type("([oOpP])?[mM][pP][iI].*");
     }
 
     gen.generate()

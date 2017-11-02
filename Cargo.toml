@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 
 [build-dependencies]
-bindgen = "0.30"
+bindgen = "0.31"
 
 [features]
 default = []
