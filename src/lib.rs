@@ -6,6 +6,6 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 ///
 /// By default, `lammps-sys` uses this definition so that you do not require
 /// a definition of "mpi.h" on your system path.  To disable this behavior,
-/// enable the "system-api" feature.
+/// enable the "system-mpi" feature.
 #[cfg(not(feature = "system-mpi"))]
 pub enum MPI_Comm { }
