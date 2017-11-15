@@ -1,3 +1,5 @@
+#define LAMMPS_EXCEPTIONS
+
 // NOTE: If bindgen cannot find this file,
 //       please see the lammps-sys README.md for help.
 //

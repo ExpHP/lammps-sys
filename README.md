@@ -2,14 +2,47 @@
 
 Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
 
+## Usage
+
+`lammps-sys` is not currently on crates.io.  You can depend on it with a git dependency:
+
+```toml
+[dependencies.lammps-sys]
+version = "0.2"
+git = "https://github.com/ExpHP/lammps-sys"
+```
+
 ## Some assembly required
 
-1. This currently only supports linking LAMMPS as a **shared library.**
-   - Note this is *not the default build mode of LAMMPS.*
-   - Make sure that **`liblammps.so`** is available in your `LD_LIBRARY_PATH`.
-2. This requires the LAMMPS C interface header file.
-   - This file is located at `src/library.h` in the LAMMPS source tree.
-   - You must make this available as **`lammps/library.h`** somewhere in your `C_INCLUDE_PATH`.
+### Building lammps
+
+You will likely need to build LAMMPS manually in order to enable some non-standard options:
+
+* It must be built as a **shared library.**
+* It must be built with `-DLAMMPS_EXCEPTIONS`.
+
+An example of how you can achieve this:
+
+```sh
+cd where/you/unpacked/lammps
+cd src
+
+# Create a custom makefile.
+# You can base it off of any file in MAKE, this just uses 'omp' as an example
+cp MAKE/OPTIONS/Makefile.omp MAKE/MINE/Makefile.my-omp
+nano MAKE/MINE/Makefile.my-omp # find LMP_INC and add -DLAMMPS_EXCEPTIONS
+                               # to the end of the line
+
+make my-omp mode=lib
+```
+
+### Installing LAMMPS where `lammps-sys` can find it
+
+Building lammps will produce a `liblammps_*.so` file in `src`.  Also in in the lammps `src` directory is a file named `library.h`.
+
+1. Install `liblammps_*.so` somewhere in `LD_LIBRARY_PATH` under the name **`liblammps.so`**
+
+2. Install `library.h` somewhere in `C_INCLUDE_PATH` as **`lammps/library.h`**.
 
 ### MPI
 
