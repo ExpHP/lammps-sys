@@ -8,7 +8,7 @@ Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large
 
 ```toml
 [dependencies.lammps-sys]
-version = "0.2"
+tag = "v0.2.0"
 git = "https://github.com/ExpHP/lammps-sys"
 ```
 
@@ -52,7 +52,7 @@ However, *if you must:*
 
 ```toml
 [dependencies.lammps-sys]
-version = "0.1"
+tag = "v0.2.0"
 features = ["system-mpi"]
 ```
 When you enable the feature **`system-mpi`**, then bindgen will search for `mpi.h` on the system path. This must correspond to **the same implementation of MPI that Lammps was built against** if you plan to call `lammps_open`. This usage of `lammps-sys` is currently unsupported, because I do not need it and it seems like a major footgun.  If you use it, [let me know how it works out.](https://github.com/ExpHP/lammps-sys/issues)
