@@ -1,6 +1,6 @@
 [package]
 name = "lammps-sys"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 
 [build-dependencies]
