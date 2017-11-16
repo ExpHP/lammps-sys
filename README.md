@@ -33,14 +33,14 @@ cp MAKE/OPTIONS/Makefile.omp MAKE/MINE/Makefile.my-omp
 nano MAKE/MINE/Makefile.my-omp # find LMP_INC and add -DLAMMPS_EXCEPTIONS
                                # to the end of the line
 
-make my-omp mode=lib
+make my-omp mode=shlib
 ```
 
 ### Installing LAMMPS where `lammps-sys` can find it
 
 Building lammps will produce a `liblammps_*.so` file in `src`.  Also in in the lammps `src` directory is a file named `library.h`.
 
-1. Install `liblammps_*.so` somewhere in `LD_LIBRARY_PATH` under the name **`liblammps.so`**
+1. Install `liblammps_*.so` somewhere in `LIBRARY_PATH` and `LD_LIBRARY_PATH` under the name **`liblammps.so`**
 
 2. Install `library.h` somewhere in `C_INCLUDE_PATH` as **`lammps/library.h`**.
 
