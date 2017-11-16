@@ -54,7 +54,7 @@ If you just want to see the rust signatures for the bindings, you can also gener
 git clone https://github.com/ExpHP/lammps-sys
 cd lammps-sys
 cargo doc
-chromium target/doc/lammps-sys/index.html
+chromium target/doc/lammps_sys/index.html
 ```
 
 ### MPI
