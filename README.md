@@ -44,6 +44,19 @@ Building lammps will produce a `liblammps_*.so` file in `src`.  Also in in the l
 
 2. Install `library.h` somewhere in `C_INCLUDE_PATH` as **`lammps/library.h`**.
 
+### Docs
+
+I recommend you look at that `library.h` file you just installed.
+
+If you just want to see the rust signatures for the bindings, you can also generate those yourself:
+
+```
+git clone https://github.com/ExpHP/lammps-sys
+cd lammps-sys
+cargo doc
+chromium target/doc/lammps-sys/index.html
+```
+
 ### MPI
 
 By default, **`MPI_Comm`** is defined as an empty type, forbidding usage of the `lammps_open` function. To instantiate LAMMPS under the default settings, **you must use `lammps_open_no_mpi`**.
