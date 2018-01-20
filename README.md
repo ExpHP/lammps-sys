@@ -6,6 +6,7 @@ Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large
 
 `lammps-sys` is not currently on crates.io.  You can depend on it with a git dependency:
 
+<!-- Please remember to update ALL TOML examples, not just this one! -->
 ```toml
 [dependencies.lammps-sys]
 tag = "v0.3.0"
@@ -63,9 +64,10 @@ By default, **`MPI_Comm`** is defined as an empty type, forbidding usage of the 
 
 However, *if you must:*
 
+<!-- Please remember to update ALL TOML examples, not just this one! -->
 ```toml
 [dependencies.lammps-sys]
-tag = "v0.2.0"
+tag = "v0.3.0"
 git = "https://github.com/ExpHP/lammps-sys"
 features = ["system-mpi"]
 ```
