@@ -8,7 +8,7 @@ Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large
 
 ```toml
 [dependencies.lammps-sys]
-tag = "v0.2.0"
+tag = "v0.3.0"
 git = "https://github.com/ExpHP/lammps-sys"
 ```
 
@@ -83,9 +83,11 @@ LAMMPS (31 Mar 2017)
 Total wall time: 0:00:00
 ```
 
-## License
+## [License](COPYING)
 
 Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see the file `COPYING` for more details.
+
+## [Release notes](relnotes.md)
 
 ## Citations
 
