@@ -71,6 +71,18 @@ features = ["system-mpi"]
 ```
 When you enable the feature **`system-mpi`**, then bindgen will search for `mpi.h` on the system path. This must correspond to **the same implementation of MPI that Lammps was built against** if you plan to call `lammps_open`. This usage of `lammps-sys` is currently unsupported, because I do not need it and it seems like a major footgun.  If you use it, [let me know how it works out.](https://github.com/ExpHP/lammps-sys/issues)
 
+### Did it work?
+
+You can test your lammps install and system configuration by cloning this repo and running the `link-test` example.
+
+```sh
+$ git clone https://github.com/ExpHP/lammps-sys
+$ cd lammps-sys
+$ cargo run --example=link-test
+LAMMPS (31 Mar 2017)
+Total wall time: 0:00:00
+```
+
 ## License
 
 Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see the file `COPYING` for more details.

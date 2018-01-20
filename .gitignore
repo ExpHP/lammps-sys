@@ -2,3 +2,6 @@
 **/*.rs.bk
 Cargo.lock
 .vscode/
+
+# link-test will generate this
+log.lammps

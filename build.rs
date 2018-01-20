@@ -25,6 +25,10 @@ fn main() {
     gen = gen.header("src/wrapper.h");
     gen = gen.whitelist_function("lammps.*");
 
+    // support older versions of libclang, which will mangle even
+    // the names of C functions unless we disable this.
+    gen = gen.trust_clang_mangling(false);
+
     if cfg!(not(feature = "system-mpi")) {
         gen = gen.blacklist_type("([oOpP])?[mM][pP][iI].*");
     }
