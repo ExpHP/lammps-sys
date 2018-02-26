@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+import dateutil.parser
+import subprocess
+
+PROG = os.path.basename(sys.argv[0])
+
+SCRIPT_PATH = os.path.realpath(__file__)
+ROOT_DIR = os.path.dirname(SCRIPT_PATH)
+
+LAMMPS_REPO_DIR = os.path.join(ROOT_DIR, "lammps")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='checks out a version for the lammps submodule',
+    )
+    parser.add_argument('STYLE',
+        choices=['stable', 'patch'],
+        help='stable release or not?')
+    parser.add_argument('DATE',
+        type=dateutil.parser.parse,
+        help='release date of desired version. It will be parsed by'
+        ' dateutil.parser.parse which accepts a variety of formats.')
+    args = parser.parse_args()
+
+    tag = lammps_git_tag_from_datetime(args.STYLE, args.DATE)
+    cmd_checkout_for_submodule(tag)
+
+def lammps_git_tag_from_datetime(style, dt):
+    # can't use strftime because the month abbreviations must not be
+    # dependent on the locale
+    month = [None,
+        'Jan', 'Feb', 'Mar', 'Apr',
+        'May', 'Jun', 'Jul', 'Aug',
+        'Sep', 'Oct', 'Nov', 'Dec',
+    ][dt.month]
+
+    # ladies and gentleman, I present to you the worst possible date
+    # format for anything that is to be lexically sorted.
+    return '{}_{}{}{}'.format(style, dt.day, month, dt.year)
+
+def cmd_checkout_for_submodule(commit_or_tag):
+    return subprocess.check_call(
+        ['git', 'checkout', commit_or_tag],
+        cwd=os.path.join(LAMMPS_REPO_DIR),
+    )
+
+# ------------------------------------------------------
+
+def warn(*args, **kw):
+    print(f'{PROG}:', *args, file=sys.stderr, **kw)
+
+def die(*args, code=1):
+    warn('Fatal:', *args)
+    sys.exit(code)
+
+# ------------------------------------------------------
+
+if __name__ == '__main__':
+    main()

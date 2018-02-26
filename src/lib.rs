@@ -1,11 +1,14 @@
 #![allow(bad_style)]
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+//! Automatically-generated bindings for lammps, using bindgen.
 
-/// Dummy uninstantiable definition of `MPI_Comm`.
-///
-/// By default, `lammps-sys` uses this definition so that you do not require
-/// a definition of "mpi.h" on your system path.  To disable this behavior,
-/// enable the "system-mpi" feature.
-#[cfg(not(feature = "system-mpi"))]
-pub enum MPI_Comm { }
+include!(concat!(env!("OUT_DIR"), "/codegen/lammps.rs"));
+
+pub mod other {
+    //! Bindings to other things compiled with lammps, filtered into
+    //! a separate module to help reduce clutter.
+    //!
+    //! These can be particularly important to have on hand in case
+    //! lammps was built statically.
+    include!(concat!(env!("OUT_DIR"), "/codegen/other.rs"));
+}

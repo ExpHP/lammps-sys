@@ -1,11 +1,35 @@
 [package]
 name = "lammps-sys"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 
 [build-dependencies]
 bindgen = "0.31"
+make-cmd = "0.1.0"
+path_abs = { version = "0.3.16", features = [] }
+num_cpus = "1.8.0"
+walkdir = "2.1.4"
+extension-trait = "0.1.2"
 
 [features]
-default = []
-system-mpi = []
+default = ["exceptions"]
+
+# Runs 'make yes-user-misc'.
+# Adds support for a variety of user-contributed potentials.
+user-misc = []
+
+# Runs 'make yes-user-omp'.
+# Includes the omp package and omp potentials.
+# May require additional setup beyond that which is automatically
+# provided by enabling the feature. (Honestly, I'm not sure!)
+user-omp = []
+
+# Defines LAMMPS_EXCEPTIONS.
+# With it, you get functions for inspecting Lammps' error state.
+# Without it, Lammps will gleefully abort the entire process.
+exceptions = []
+
+# Defines LAMMPS_BIGBIG.
+# Enables support for obscenely large structures. Are two billion atoms
+# really not enough for you?
+bigbig = []
