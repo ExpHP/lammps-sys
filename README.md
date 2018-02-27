@@ -1,6 +1,6 @@
 # `lammps-sys`
 
-Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
+Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
 
 ## Usage
 
@@ -13,41 +13,9 @@ tag = "v0.3.0"
 git = "https://github.com/ExpHP/lammps-sys"
 ```
 
-## Some assembly required
+## Docs
 
-### Building lammps
-
-You will likely need to build LAMMPS manually in order to enable some non-standard options:
-
-* It must be built as a **shared library.**
-* It must be built with `-DLAMMPS_EXCEPTIONS`.
-
-An example of how you can achieve this:
-
-```sh
-cd where/you/unpacked/lammps
-cd src
-
-# Create a custom makefile.
-# You can base it off of any file in MAKE, this just uses 'omp' as an example
-cp MAKE/OPTIONS/Makefile.omp MAKE/MINE/Makefile.my-omp
-nano MAKE/MINE/Makefile.my-omp # find LMP_INC and add -DLAMMPS_EXCEPTIONS
-                               # to the end of the line
-
-make my-omp mode=shlib
-```
-
-### Installing LAMMPS where `lammps-sys` can find it
-
-Building lammps will produce a `liblammps_*.so` file in `src`.  Also in in the lammps `src` directory is a file named `library.h`.
-
-1. Install `liblammps_*.so` somewhere in `LIBRARY_PATH` and `LD_LIBRARY_PATH` under the name **`liblammps.so`**
-
-2. Install `library.h` somewhere in `C_INCLUDE_PATH` as **`lammps/library.h`**.
-
-### Docs
-
-I recommend you look at that `library.h` file you just installed.
+See LAMMPS' [`library.h`].  This is the file that bindings will be generated to.
 
 If you just want to see the rust signatures for the bindings, you can also generate those yourself:
 
@@ -58,24 +26,15 @@ cargo doc
 chromium target/doc/lammps_sys/index.html
 ```
 
-### MPI
+## Linking
 
-By default, **`MPI_Comm`** is defined as an empty type, forbidding usage of the `lammps_open` function. To instantiate LAMMPS under the default settings, **you must use `lammps_open_no_mpi`**.
+As of version v0.4, *only static linking is supported.*
 
-However, *if you must:*
+LAMMPS is automatically downloaded and built from source.  The default settings hopefully work out-of-the-box on most systems, though they might not be fast.
 
-<!-- Please remember to update ALL TOML examples, not just this one! -->
-```toml
-[dependencies.lammps-sys]
-tag = "v0.3.0"
-git = "https://github.com/ExpHP/lammps-sys"
-features = ["system-mpi"]
-```
-When you enable the feature **`system-mpi`**, then bindgen will search for `mpi.h` on the system path. This must correspond to **the same implementation of MPI that Lammps was built against** if you plan to call `lammps_open`. This usage of `lammps-sys` is currently unsupported, because I do not need it and it seems like a major footgun.  If you use it, [let me know how it works out.](https://github.com/ExpHP/lammps-sys/issues)
+## Does it work?
 
-### Did it work?
-
-You can test your lammps install and system configuration by cloning this repo and running the `link-test` example.
+For an easier time diagnosing building/linking issues, you can clone this repo and try running the `link-test` example.
 
 ```sh
 $ git clone https://github.com/ExpHP/lammps-sys
@@ -84,6 +43,56 @@ $ cargo run --example=link-test
 LAMMPS (31 Mar 2017)
 Total wall time: 0:00:00
 ```
+
+Be sure to try this using the environment variables and `--features` that you plan to enable in your own project.
+
+## Configuration
+
+### Environment variables
+
+The following environment variables are used by `lammps-sys` to control the build:
+
+* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate.  See the files in [`src/MAKE`](https://github.com/lammps/lammps/tree/master/src/MAKE) of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
+
+### Cargo features
+
+#### Preprocessor Flags
+
+The following flags add functions to the C API, and can be enabled through features.
+
+| Feature | Effect | Package docs |
+| ------- | ------ | ----- |
+| **`exceptions`** | `-DLAMMPS_EXCEPTIONS` | Makes Lammps report errors through new API functions. **Without this feature, LAMMPS will abort the process on error.** |
+| `bigbig`  | `-DLAMMPS_BIGBIG` | Adds support for ridiculously large structures, and adds some related functions to the C bindings. |
+
+**Bolded** features are enabled by default.
+
+#### Packages
+
+Lammps' packages are configured through cargo features, which cause `lammps-sys` to run the appropriate makefile target before building Lammps. Only a few packages are currently supported; I only added what I needed. PRs to add features for more packages are welcome.
+
+| Feature | Effect | Package docs |
+| ------- | ------ | ----- |
+| `user-misc` | Runs `make yes-user-misc` | [USER-MISC package](http://lammps.sandia.gov/doc/Section_packages.html#user-misc-package) |
+| `user-omp`  | Runs `make yes-user-omp` | [USER-OMP package](http://lammps.sandia.gov/doc/accelerate_omp.html) |
+
+In theory, using cargo features to control packages allows a library that depends on `lammps-sys` to enable a few specific packages it requires without having to dictate the entire build. (Though in practice I rather doubt any library will ever depend on `lammps-sys`!)
+
+## How-to
+
+### Enabling OpenMP
+
+TODO
+
+### Using a specific/modified version of lammps
+
+This is not currently supported by `lammps-sys` in any fashion.
+
+Prior versions of `lammps-sys` used the dynamic linking model, which made this possible. However, it required a bunch of manual setup and ultimately there is no way to ensure that the bindings generated by bindgen accurately reflect the library they are linking against.
+
+<!-- DO NOT UPDATE THIS VERSION NUMBER! -->
+<!-- It should remain at 0.3.0, the last version with dynamic linking. -->
+If that does not deter you, however, feel free to check it out: [`lammps-sys v0.3.0`](https://github.com/ExpHP/lammps-sys/tree/v0.3.0)
 
 ## [License](COPYING)
 

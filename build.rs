@@ -72,10 +72,9 @@ struct BuildMeta {
 }
 
 fn _main_do_static_build() -> PanicResult<BuildMeta> {
-    let lmp_dir = LammpsDir::get()?;
-    let orig_name = env::make();
-    let orig_path = lmp_dir.find_prepackaged_makefile(&orig_name)?
-        .unwrap_or_else(|| panic!("Makefile for '{}' not found!", orig_name));
+    let lmp_dir = LammpsDir::get();
+    let orig_path = env::makefile();
+    rerun_if_changed(&orig_path.as_path().display());
 
     make::so_clean_its_like_its_not_even_there()?;
 
@@ -139,7 +138,7 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
 fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
     let BuildMeta { defines } = meta;
 
-    let lmp_dir = LammpsDir::get()?;
+    let lmp_dir = LammpsDir::get();
     let out_path = PathDir::new(env::expect("OUT_DIR"))?;
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
@@ -306,23 +305,41 @@ mod env {
     use super::*;
     use ::std::env;
 
-    pub fn make() -> String {
-        get_nonempty("RUST_LAMMPS_MAKE").unwrap_or_else(|| "serial".into())
+    pub fn makefile() -> PathFile {
+        let var = "RUST_LAMMPS_MAKEFILE";
+        match get_rerun_nonempty(var) {
+            None => {
+                let path = LammpsDir::get().join("src/MAKE/Makefile.serial");
+                PathFile::new(&path)
+                    .unwrap_or_else(|e| panic!("Bug in lammps-sys!: {}", e))
+            },
+            Some(path) => {
+                // user-oriented error message; mention the env var.
+                PathFile::new(path)
+                    .unwrap_or_else(|e| panic!("Error in {}: {}", var, e))
+            },
+        }
     }
 
+    // For vars that cargo provides, like OUT_DIR.
+    // This doesn't do "rerun-if-env-changed".
     pub fn expect(var: &str) -> String {
         env::var(var)
            .unwrap_or_else(|e| panic!("error reading {}: {}", var, e))
     }
 
-    fn get_nonempty(s: &str) -> Option<String> {
+    fn get_rerun_nonempty(s: &str) -> Option<String> {
+        get_rerun(s).and_then(|s| match &s[..] {
+            "" => None,
+            _ => Some(s),
+        })
+    }
+
+    fn get_rerun(s: &str) -> Option<String> {
+        rerun_if_env_changed(s);
         env::var(s).map(Some).unwrap_or_else(|e| match e {
             env::VarError::NotPresent => None,
             env::VarError::NotUnicode(e) => panic!("var {} is not unicode: {:?}", s, e),
-        // }).filter(|s| s != "") // not stable
-        }).and_then(|s| match &s[..] {
-            "" => None,
-            _ => Some(s),
         })
     }
 }
@@ -336,26 +353,9 @@ impl ::std::ops::Deref for LammpsDir {
 }
 
 impl LammpsDir {
-    pub fn get() -> PathResult<Self> {
+    pub fn get() -> Self {
         lammps_repo_dir().map(LammpsDir)
-    }
-    pub fn find_prepackaged_makefile(&self, name: &str) -> PathResult<Option<PathFile>> {
-        let full_name = format!("Makefile.{}", name);
-        assert_eq!(Path::new(&full_name).components().count(), 1);
-
-        let subdirs = &[
-            "src/MAKE",
-            "src/MAKE/OPTIONS",
-            "src/MAKE/MACHINE",
-        ];
-        for d in subdirs {
-            // (dir is constructed simply to Err on a missing directory)
-            let dir = PathDir::new(self.join(d))?;
-            if let Ok(path) = PathFile::new(dir.join(&full_name)) {
-                return Ok(Some(path));
-            }
-        }
-        Ok(None)
+            .expect("Could not find lammps submodule")
     }
 
     /// For creating thine makefile.
@@ -613,13 +613,6 @@ mod makefile {
             // a simple '=' declaration; no tricks.
             let mut matches = self.0.iter().enumerate()
                 // (don't know if variable defs can be indented; don't care)
-                /*.inspect(|&(_, line)| {
-                    eprintln!("{:?} {} {} {}", line,
-                        line.starts_with(name),
-                        line.len() > name.len(),
-                        !is_identifier_char(line.as_bytes()[name.len()]),
-                    );
-                })*/
                 .filter(|&(_, line)|
                     line.starts_with(name)
                     && line.len() > name.len()
