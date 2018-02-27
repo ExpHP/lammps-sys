@@ -15,7 +15,8 @@ git = "https://github.com/ExpHP/lammps-sys"
 
 ## Docs
 
-See LAMMPS' [`library.h`].  This is the file that bindings will be generated to.
+<!-- NOTE: The cpp file has the doc comments, not the h file -->
+See LAMMPS' [`library.cpp`].  This is the file that bindings will be generated to.
 
 If you just want to see the rust signatures for the bindings, you can also generate those yourself:
 
@@ -127,5 +128,5 @@ S. Plimpton, **Fast Parallel Algorithms for Short-Range Molecular Dynamics**, J 
 <!-- These links should all be maintained to point to the version
      of lammps that is built by `lammps-sys`                      -->
 [`src/MAKE`]: https://github.com/lammps/lammps/tree/patch_5Feb2018/src/MAKE
-[`library.h`]: https://github.com/lammps/lammps/blob/patch_5Feb2018/src/library.h
+[`library.cpp`]: https://github.com/lammps/lammps/blob/patch_5Feb2018/src/library.cpp
 [the lammps source]: https://github.com/lammps/lammps/tree/patch_5Feb2018
