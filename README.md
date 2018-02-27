@@ -52,7 +52,7 @@ Be sure to try this using the environment variables and `--features` that you pl
 
 The following environment variables are used by `lammps-sys` to control the build:
 
-* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate.  See the files in [`src/MAKE`](https://github.com/lammps/lammps/tree/master/src/MAKE) of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
+* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate.  See the files in [`src/MAKE`] of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
 
 ### Cargo features
 
@@ -82,7 +82,27 @@ In theory, using cargo features to control packages allows a library that depend
 
 ### Enabling OpenMP
 
-TODO
+Enabling OpenMP will require you to supply your own Makefile.
+
+* If you are not familiar with the process of building LAMMPS, clone [the lammps source] and follow their instructions to learn how to compile an executable.
+* Compile a LAMMPS executable with OpenMP support. This will require you to browse around their prepackaged makefiles and possibly make one of your own. You will know you have succeeded when the lammps binary accepts the command `"package omp 0"` and does not emit any warnings or errors.
+* Set the environment variable `RUST_LAMMPS_MAKEFILE` to an absolute path to the makefile.
+
+#### Supplying `-fopenmp` at linking
+
+If you get errors during the linking stage about undefined symbols from `omp_`, you may try adding the following to your `~/.cargo/config` (or to a `.cargo/config` in your own crate's directory):
+
+```
+# For building lammps-sys with openmp.
+# Not sure how this impacts other crates...
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Clink-args=-fopenmp"]
+```
+
+(you can obtain the correct target triple for your machine by running `rustc --version -v`)
+
+If this sounds like terrible advice, that's because it probably is!  Unfortunately, it does not seem to be possible to set this flag from within a cargo build script, and I do not know of a better solution at this time.
 
 ### Using a specific/modified version of lammps
 
@@ -103,3 +123,9 @@ Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see 
 ## Citations
 
 S. Plimpton, **Fast Parallel Algorithms for Short-Range Molecular Dynamics**, J Comp Phys, 117, 1-19 (1995)
+
+<!-- These links should all be maintained to point to the version
+     of lammps that is built by `lammps-sys`                      -->
+[`src/MAKE`]: https://github.com/lammps/lammps/tree/patch_5Feb2018/src/MAKE
+[`library.h`]: https://github.com/lammps/lammps/blob/patch_5Feb2018/src/library.h
+[the lammps source]: https://github.com/lammps/lammps/tree/patch_5Feb2018
