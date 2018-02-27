@@ -7,7 +7,7 @@ extern crate walkdir;
 #[macro_use] extern crate extension_trait;
 
 use ::path_abs::{PathArc, PathDir, PathFile, FileRead, FileWrite};
-use ::path_abs::{Result as PathResult, Error as PathError};
+use ::path_abs::{Result as PathResult};
 type BoxResult<T> = Result<T, Box<std::error::Error>>;
 use ::walkdir::WalkDir;
 
@@ -15,8 +15,9 @@ use ::std::path::Path;
 use ::std::process::{Command, Stdio};
 use ::std::io::Result as IoResult;
 use ::std::io::BufReader;
-use ::std::fmt::Display;
+use ::std::fmt::{self, Display};
 use ::std::io::prelude::*;
+use ::std::borrow::Borrow;
 
 // ----------------------------------------------------
 // "Constants". Sorta.
@@ -67,7 +68,7 @@ fn main() {
 // needed during bindgen.
 struct BuildMeta {
     // a bunch of "-DFLAG" args, "-D" included
-    lammps_defines: Vec<String>,
+    defines: CcFlags,
 }
 
 fn _main_do_static_build() -> PanicResult<BuildMeta> {
@@ -76,11 +77,13 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
     let orig_path = lmp_dir.find_prepackaged_makefile(&orig_name)?
         .unwrap_or_else(|| panic!("Makefile for '{}' not found!", orig_name));
 
-    make::so_clean_its_like_its_not_even_there(&lmp_dir)?;
+    make::so_clean_its_like_its_not_even_there()?;
 
     // Make a custom makefile with the right C preprocessor defines,
     // and record them.
-    let lammps_defines = {
+    let make_dir = lmp_dir.join("src/MAKE").canonicalize()?.into_dir()?;
+    let (defines, lib_flags);
+    {
         let makefile = LammpsMakefile::from_reader(BufReader::new(orig_path.read()?))?;
 
         let mut defs = makefile.lmp_defines();
@@ -95,7 +98,8 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
         let file = lmp_dir.create_mine_makefile("rust")?;
         makefile.to_writer(file)?;
 
-        makefile.all_inc_flags()
+        defines = makefile.all_inc_flags().make_paths_absolute(&make_dir);
+        lib_flags = makefile.all_lib_flags().make_paths_absolute(&make_dir);
     };
 
     vec_from_features![
@@ -106,24 +110,35 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
         ::make::jay(&lmp_dir).arg(target).run_custom().unwrap();
     });
 
+    // make src/STUBS/libmpi_stubs.a.
+    // needed for serial builds.
+    // Quick and harmless to build for other builds;
+    // whether we link it is determined by lib_flags
+    ::make::nojay(&lmp_dir).arg("mpi-stubs").run_custom().unwrap();
+    // make src/liblammps.a
     ::make::run_fast_and_loose(
         &lmp_dir,
         |c| c.arg("rust").arg("mode=lib"),
     ).unwrap();
 
-    // NOTE: I'd like to verify that the library exists, but cannot
-    //       easily do so in a cross-platform manner
-    println!("cargo:rust-link-search={}", lmp_dir.join("src").display());
-    println!("cargo:rust-link-lib=static=lammps");
+    println!("cargo:rustc-link-search={}", lmp_dir.join("src").display());
+    println!("cargo:rustc-link-lib=static=lammps");
 
-    Ok(BuildMeta { lammps_defines })
+    // FIXME: Does this cause problems for other crates that need libstdc++?
+    //        Should there be a stdcpp-sys crate just for this?
+    // NOTE: This is only needed for static builds.
+    println!("cargo:rustc-flags=-l stdc++");
+
+    println!("cargo:rustc-flags={}", RustLibFlags(lib_flags));
+
+    Ok(BuildMeta { defines })
 }
 
 // ----------------------------------------------------
 
 fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
-    let BuildMeta { lammps_defines } = meta;
-    
+    let BuildMeta { defines } = meta;
+
     let lmp_dir = LammpsDir::get()?;
     let out_path = PathDir::new(env::expect("OUT_DIR"))?;
 
@@ -133,20 +148,20 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
     // (these things don't implement Clone...)
     let make_gen = || {
         let mut gen = ::bindgen::Builder::default();
-        
+
         // Lammps' poorly-named header file...
         gen = gen.header(lmp_dir.join("src/library.h").display().to_string());
 
         // Ensure that the header contains the right features corresponding
         // to what was enabled (e.g. `LAMMPS_EXCEPTIONS`).
-        gen = gen.clang_args(&lammps_defines);
-        
+        gen = gen.clang_args(defines.to_args());
+
         // support older versions of libclang, which will mangle even
         // the names of C functions unless we disable this.
         gen = gen.trust_clang_mangling(false);
         gen
     };
-    
+
     make_gen()
         .whitelist_function("lammps.*")
         .generate()
@@ -175,6 +190,8 @@ fn _main_print_reruns() -> PanicResult<()> {
     let git_dir = lammps_git_dir()?;
     assert!(git_dir.join("HEAD").exists());
     rerun_if_changed(git_dir.join("HEAD").display());
+
+    rerun_if_changed("Cargo.toml");
     rerun_if_changed_recursive("src".as_ref())?;
 
     let file = BufReader::new(FileRead::read("build-data/rerun-if-env-changed")?);
@@ -229,40 +246,11 @@ extension_trait!{
 mod make {
     use super::*;
 
-    pub fn so_clean_its_like_its_not_even_there(lmp_dir: &PathDir) -> PanicResult<()> {
-        // Basically:
-        //
-        //     rm -rf source/!(.git)
-        //     (cd source && git reset --hard)
-        //
-        // because lammps' own "make clean-all" simply does not even
+    pub fn so_clean_its_like_its_not_even_there() -> PanicResult<()> {
+        // lammps' own "make clean-all" simply does not even
         // come close to cutting it.
-
-        let good_dotgit = lmp_dir.join(".git");
-        let dotgit = PathFile::new(&good_dotgit)?.copy("temp-source.git")?;
-
-        // temporarily trap errors until .git is back in place
-        (|| {
-            lmp_dir.clone().remove_all()?;
-            PathDir::create(lmp_dir)?;
-            dotgit.clone().rename(&good_dotgit).unwrap(); // FIXME rm PanicError
-            Ok(())
-        })().map_err(|e: PathError| {
-            eprintln!(
-                "CAUTION: \
-                An error occured while the lammps submodule's .git was displaced! \
-                You may need to resolve this yourself. Sorry!"
-            );
-            eprintln!("   It was moved to: {}", dotgit.display());
-            eprintln!("   It belongs at:   {}", good_dotgit.display());
-            e
-        })?;
-
-        Command::new("git")
-            .args(&["reset", "HEAD", "--hard"])
-            .current_dir(&lmp_dir)
-            .run_custom()?;
-
+        let path = PathFile::new("scripts/clear-lammps")?;
+        Command::new(path.as_path()).run_custom()?;
         Ok(())
     }
 
@@ -384,6 +372,150 @@ impl LammpsDir {
 
 // ----------------------------------------------------
 
+// When conveying preprocessor flags from lammps to bindgen,
+// we must parse them to be able to fix relative include paths.
+//
+// As you may well be aware, attempting to extract a specific
+// option's values from a unix-style argument list (e.g. "get all
+// of the -I directories from this argument stream") is actually
+// *impossible* to do correctly without knowing the complete set
+// of options implemented by the program. In other words, the
+// code you are about to read willfully attempts to solve an
+// impossible problem. Needless to say, it makes MANY assumptions.
+//
+// My apologies in advance. I saw no other way.
+
+const SHORTS_WITH_REQUIRED_ARGS: &'static [&'static str] = &[
+    "-D", "-L", "-l", "-I",
+];
+
+// A flag for the C compiler (or preprocessor or linker).
+enum CcFlag {
+    // a "-DNAME" flag (or "-DNAME=VALUE", we don't care)
+    Define(String),
+    // an "-Ipath/to/include" flag (or "-I" "path/to/include").
+    IncludeDir(PathArc),
+    // an "-Lpath/to/include" flag (or "-L" "path/to/include").
+    LibDir(PathArc),
+    // an "-llibrary" flag
+    Lib(String),
+    // an unknown argument.  We will assume it is not something
+    // that would prevent the next argument from being parsed as
+    // an option, because an option value starting with -I/-l/-L
+    // seems pretty contrived.
+    Other(String),
+}
+
+impl CcFlag {
+    fn map_paths<F>(self, f: F) -> Self
+    where F: FnOnce(PathArc) -> PathArc,
+    {
+        match self {
+            CcFlag::LibDir(s) => CcFlag::LibDir(f(s)),
+            CcFlag::IncludeDir(s) => CcFlag::IncludeDir(f(s)),
+
+            c@CcFlag::Define(_) => c,
+            c@CcFlag::Lib(_)    => c,
+            c@CcFlag::Other(_)  => c,
+        }
+    }
+}
+
+pub struct CcFlags(Vec<CcFlag>);
+
+/// Wrapper with appropriate display impl for cargo:rustc-flags
+struct RustLibFlags(CcFlags);
+impl Display for RustLibFlags {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // I hope you don't need spaces in your paths, because we don't quote...
+        // Also, this puts a space between the option and its arguments
+        // in order to cater to cargo, who will be parsing our lib args
+        // for its own evil porpoises.
+        write!(f, "{}", (self.0).0.iter().map(WithSpace).join(" "))
+    }
+}
+
+impl CcFlag {
+    fn fmt_with_space(&self, space: &str, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            CcFlag::IncludeDir(ref path) => write!(f, "-I{}{}", space, path.display()),
+            CcFlag::LibDir(ref path) => write!(f, "-L{}{}", space, path.display()),
+            CcFlag::Lib(ref s) => write!(f, "-l{}{}", space, s),
+            CcFlag::Define(ref s) => write!(f, "-D{}{}", space, s),
+            CcFlag::Other(ref s) => write!(f, "{}", s),
+        }
+    }
+}
+
+// Displays as "-l iberty"
+struct WithSpace<C>(C);
+impl<C> fmt::Display for WithSpace<C> where C: Borrow<CcFlag> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    { self.0.borrow().fmt_with_space(" ", f) }
+}
+
+// Displays as "-liberty"
+struct WithoutSpace<C>(C);
+impl<C> fmt::Display for WithoutSpace<C> where C: Borrow<CcFlag> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    { self.0.borrow().fmt_with_space("", f) }
+}
+
+// Wrappers with appropriate display impls
+
+impl CcFlags {
+    fn parse(string: &str) -> Self {
+        enum Class<'a> {
+            OptWithArg(&'a str, &'a str),
+            Other(&'a str),
+        }
+
+        let mut words: Vec<_> = string.split_whitespace().rev().collect();
+        let mut out = vec![];
+        while let Some(first) = words.pop() {
+
+            let class = 'class: loop {
+                for &prefix in SHORTS_WITH_REQUIRED_ARGS {
+                    if first == prefix {
+                        let panic = || panic!("{} with no argument", prefix);
+                        let arg = words.pop().unwrap_or_else(panic);
+                        break 'class Class::OptWithArg(prefix, arg);
+                    } else if first.starts_with(prefix) {
+                        break 'class Class::OptWithArg(prefix, &first[prefix.len()..]);
+                    }
+                }
+                break 'class Class::Other(first.into());
+            };
+
+            out.push(match class {
+                Class::OptWithArg("-l", s) => CcFlag::Lib(s.into()),
+                Class::OptWithArg("-D", s) => CcFlag::Define(s.into()),
+                Class::OptWithArg("-I", s) => CcFlag::IncludeDir(PathArc::new(s)),
+                Class::OptWithArg("-L", s) => CcFlag::LibDir(PathArc::new(s)),
+                Class::OptWithArg(opt, _) => panic!("Missing match arm for {}", opt),
+                Class::Other(s) => CcFlag::Other(s.into()),
+            })
+        }
+        CcFlags(out)
+    }
+
+    fn to_args(&self) -> Vec<String> {
+        self.0.iter().map(|x| WithoutSpace(x).to_string()).collect()
+    }
+
+    // Canonicalize pathlike vars.
+    // This is idempotent; after you do it once, all paths are absolute.
+    fn make_paths_absolute(self, root: &PathDir) -> Self {
+        CcFlags({
+            self.0.into_iter()
+                .map(|x| x.map_paths(|path| root.join(path)))
+                .collect()
+        })
+    }
+}
+
+// ----------------------------------------------------
+
 use makefile::LammpsMakefile;
 mod makefile {
     use super::*;
@@ -410,21 +542,32 @@ mod makefile {
 
         // Get all the "-D" flags and "-I" flags for headers.
         // These are communicated to bindgen.
-        // 
+        //
         // Purposes:
         // - communicate flags like LAMMPS_EXCEPTIONS to bindgen
         // - help bindgen find the header files for the MPI STUBS library
         //   in serial builds of LAMMPS.
-        pub fn all_inc_flags(&self) -> Vec<String> {
-            let mut includes = vec![];
-            for var in vec!["LMP_INC", "MPI_INC", "FFT_INC", "JPG_INC"] {
-                includes.extend({
-                    self.var_def(var)
-                        .expect(&format!("could not locate {} definition in makefile", var))
-                        .get().split_whitespace().map(|s| s.into())
-                });
+        pub fn all_inc_flags(&self) -> CcFlags {
+            self._concatenate_vars(&[
+                "LMP_INC", "MPI_INC", "FFT_INC", "JPG_INC",
+            ])
+        }
+
+        pub fn all_lib_flags(&self) -> CcFlags {
+            self._concatenate_vars(&[
+                "MPI_PATH", "FFT_PATH", "JPG_PATH",
+                "MPI_LIB",  "FFT_LIB",  "JPG_LIB",
+            ])
+        }
+
+        fn _concatenate_vars(&self, vars: &[&str]) -> CcFlags {
+            let mut flags = String::new();
+            for &var in vars {
+                let panic = || panic!("could not locate {} definition in makefile", var);
+                flags += " ";
+                flags += self.var_def(var).unwrap_or_else(panic).get();
             }
-            includes
+            CcFlags::parse(&flags)
         }
 
         pub fn with_lmp_defines<Ss>(mut self, defs: Ss) -> Self
@@ -494,7 +637,6 @@ mod makefile {
 
             Some((index, eq_index + 1))
         }
-
     }
 
     // Simple abstraction for reading and writing the RHS of a
@@ -527,7 +669,6 @@ mod makefile {
             let line = &mut (**makefile).0[line];
             line.truncate(start_col);
             *line += s;
-            eprintln!("LINE: {:?}", line);
         }
     }
 }

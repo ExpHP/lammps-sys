@@ -2,6 +2,7 @@
 name = "lammps-sys"
 version = "0.4.0"
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
+links = "lammps"
 
 [build-dependencies]
 bindgen = "0.31"

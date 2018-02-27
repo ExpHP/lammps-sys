@@ -11,7 +11,7 @@ PROG = os.path.basename(sys.argv[0])
 SCRIPT_PATH = os.path.realpath(__file__)
 ROOT_DIR = os.path.dirname(SCRIPT_PATH)
 
-LAMMPS_REPO_DIR = os.path.join(ROOT_DIR, "lammps")
+LAMMPS_REPO_DIR = os.path.join(ROOT_DIR, "../lammps")
 
 def main():
     parser = argparse.ArgumentParser(

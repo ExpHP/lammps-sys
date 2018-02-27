@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Wipes and checks out the lammps submodule.
+#
+# Basically:
+#
+#     cd lammps
+#     rm -rf (dirs that may need wiping)
+#     git reset --hard
+#
+# but with copious amounts of paranoia
+
+fatal() { echo >&2 "FATAL:" "$@"; exit 1; }
+error() { echo >&2 "ERROR:" "$@"; }
+warning() { echo >&2 "WARNING:" "$@"; }
+
+[ -d .git ] || fatal "You should run this from the repo root"
+
+cd lammps || fatal "Can't find lammps submodule. No action taken."
+
+# submodule .git is easily identified because it is a file, not a directory
+[ -f .git ] || fatal "Not 100% sure this is the lammps submodule. No action taken."
+
+cp .git ../lammps.git || fatal "Failed to protect submodule .git. No action taken."
+
+{
+    # THE DANGER ZONE
+    [ -d src/MAKE ] && # double check our location in case I made a retarded change to the above.
+                       # src/MAKE is just an arbitrarily chosen location in the lammps dir which
+                       # is unlikely to exist anywhere else.
+    rm -rf src lib &&
+    [ -f .git ] && # triple check; we DO NOT want to `git reset --hard` the main repository!!
+    git reset --hard &&
+    mv ../lammps.git .git &&
+    true
+} || fatal "An unknown error occurred at a bad time! You'll just have to work this one out!"
