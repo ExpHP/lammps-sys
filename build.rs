@@ -81,22 +81,37 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
     // Make a custom makefile with the right C preprocessor defines,
     // and record them.
     let make_dir = lmp_dir.join("src/MAKE").canonicalize()?.into_dir()?;
+    
     let (defines, lib_flags);
     {
         let makefile = LammpsMakefile::from_reader(BufReader::new(orig_path.read()?))?;
 
+        // Append some "-D" flags to the LMP_INC line for features.
+        // It does not matter if they are already there.
         let mut defs = makefile.lmp_defines();
         defs.append(&mut vec_from_features![
             "exceptions" => "-DLAMMPS_EXCEPTIONS".into(),
             "bigbig"     => "-DLAMMPS_BIGBIG".into(),
             // TODO: scout the LAMMPS docs/codebase for more
         ]);
-
         let makefile = makefile.with_lmp_defines(defs);
 
         let file = lmp_dir.create_mine_makefile("rust")?;
         makefile.to_writer(file)?;
 
+        // NOTE: The following are collected from the Makefile:
+        //
+        // *_INC flags:
+        //      To be given to bindgen, so that it has the right preprocessor
+        //      flags and can find all the necessary .h files.
+        //
+        // *_LIB, *_PATH flags:
+        //      To be given to rustc. This is necessary when building static libraries
+        //      because the final linker command will be produced by rustc
+        //
+        // This build script will actually parse the flags in order to fix the -I and -L
+        // paths to be absolute. This allows things like "MPI_PATH = ../STUBS" in the
+        // Makefile to "just work."
         defines = makefile.all_inc_flags().make_paths_absolute(&make_dir);
         lib_flags = makefile.all_lib_flags().make_paths_absolute(&make_dir);
     };
@@ -109,12 +124,12 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
         ::make::jay(&lmp_dir).arg(target).run_custom().unwrap();
     });
 
-    // make src/STUBS/libmpi_stubs.a.
-    // needed for serial builds.
-    // Quick and harmless to build for other builds;
-    // whether we link it is determined by lib_flags
+    // Make src/STUBS/libmpi_stubs.a
+    // Needed for serial builds. Quick and harmless to build for other builds.
+    // Don't worry; the Makefile is what will determine whether we actually *use* it.
     ::make::nojay(&lmp_dir).arg("mpi-stubs").run_custom().unwrap();
-    // make src/liblammps.a
+    
+    // Make src/liblammps.a
     ::make::run_fast_and_loose(
         &lmp_dir,
         |c| c.arg("rust").arg("mode=lib"),
@@ -128,6 +143,7 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
     // NOTE: This is only needed for static builds.
     println!("cargo:rustc-flags=-l stdc++");
 
+    // Forward the -l/-L flags to rustc, for reasons discussed above.
     println!("cargo:rustc-flags={}", RustLibFlags(lib_flags));
 
     Ok(BuildMeta { defines })
