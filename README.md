@@ -31,7 +31,7 @@ chromium target/doc/lammps_sys/index.html
 
 As of version v0.4, *only static linking is supported.*
 
-LAMMPS is automatically downloaded and built from source.  The default settings hopefully work out-of-the-box on most systems, though they might not be fast.
+LAMMPS is automatically downloaded and built from source.  The default settings hopefully work out-of-the-box on most systems, though it might not be super fast.  You can configure the build if necessary to enable features like OpenMP.
 
 ## Does it work?
 
@@ -104,6 +104,10 @@ rustflags = ["-Clink-args=-fopenmp"]
 (you can obtain the correct target triple for your machine by running `rustc --version -v`)
 
 If this sounds like terrible advice, that's because it probably is!  Unfortunately, it does not seem to be possible to set this flag from within a cargo build script, and I do not know of a better solution at this time.
+
+### Enabling MPI
+
+I... haven't tried it.  You can try using a custom Makefile (see [Enabling OpenMP](#enabling-openmp)).  And if everything seems to work all the way up until the linking of the final binary, you might be able to get away with a workaround like the `.cargo/config` trick to supply missing linker arguments.  In any case, [let me know how it works out for you.](https://github.com/ExpHP/lammps-sys/issues)
 
 ### Using a specific/modified version of lammps
 
