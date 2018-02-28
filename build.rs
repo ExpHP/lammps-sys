@@ -28,12 +28,14 @@ fn lammps_git_dir() -> PathResult<PathDir> {
     PathDir::new(".git/modules/lammps")
 }
 
-fn lammps_repo_dir() -> PathResult<PathDir> {
+fn lammps_repo_dir() -> PathDir {
     const PATH: &'static str = "lammps";
     // This library might do bad things if lmp_dir is a symlink,
     // due to path canonicalization...
-    assert!(!PathArc::new(PATH).symlink_metadata()?.file_type().is_symlink());
-    PathDir::new(PATH)
+    let msg = "Could not find lammps submodule";
+    assert!(!PathArc::new(PATH).symlink_metadata().expect(msg).file_type().is_symlink());
+    PathDir::new(PATH).expect(msg)
+
 }
 
 // ----------------------------------------------------
@@ -72,49 +74,57 @@ struct BuildMeta {
 }
 
 fn _main_do_static_build() -> PanicResult<BuildMeta> {
-    let lmp_dir = LammpsDir::get();
+    let lmp_dir = lammps_repo_dir();
     let orig_path = env::makefile();
     rerun_if_changed(&orig_path.as_path().display());
 
     make::so_clean_its_like_its_not_even_there()?;
 
-    // Make a custom makefile with the right C preprocessor defines,
-    // and record them.
-    let make_dir = lmp_dir.join("src/MAKE").canonicalize()?.into_dir()?;
-    
+    // Create the Makefile.
     let (defines, lib_flags);
     {
-        let makefile = LammpsMakefile::from_reader(BufReader::new(orig_path.read()?))?;
+        // Begin with the user specified Makefile.
+        let mut makefile = LammpsMakefile::from_reader(BufReader::new(orig_path.read()?))?;
 
         // Append some "-D" flags to the LMP_INC line for features.
-        // It does not matter if they are already there.
-        let mut defs = makefile.lmp_defines();
-        defs.append(&mut vec_from_features![
-            "exceptions" => "-DLAMMPS_EXCEPTIONS".into(),
-            "bigbig"     => "-DLAMMPS_BIGBIG".into(),
+        // (even if the flags are already there, this is harmless)
+        let mut defs = makefile.var_def("LMP_INC").flags();
+        defs.0.append(&mut vec_from_features![
+            "exceptions" => "LAMMPS_EXCEPTIONS".into(),
+            "bigbig"     => "LAMMPS_BIGBIG".into(),
             // TODO: scout the LAMMPS docs/codebase for more
-        ]);
-        let makefile = makefile.with_lmp_defines(defs);
+        ].into_iter().map(CcFlag::Define).collect());
+        makefile.var_def_mut("LMP_INC").set_flags(defs.0);
 
-        let file = lmp_dir.create_mine_makefile("rust")?;
+        // Those are the ONLY modifications we make to the makefile.
+        let makefile = makefile;
+
+        let dir = PathDir::create_all(lmp_dir.join("src/MAKE/MINE"))?;
+        let file = FileWrite::create(dir.join("Makefile.rust"))?;
         makefile.to_writer(file)?;
 
-        // NOTE: The following are collected from the Makefile:
-        //
-        // *_INC flags:
-        //      To be given to bindgen, so that it has the right preprocessor
-        //      flags and can find all the necessary .h files.
-        //
-        // *_LIB, *_PATH flags:
-        //      To be given to rustc. This is necessary when building static libraries
-        //      because the final linker command will be produced by rustc
-        //
+        //-----------------------
+        // NOTE: Various flags are collected from the makefile.
+
         // This build script will actually parse the flags in order to fix the -I and -L
         // paths to be absolute. This allows things like "MPI_PATH = ../STUBS" in the
         // Makefile to "just work."
-        defines = makefile.all_inc_flags().make_paths_absolute(&make_dir);
-        lib_flags = makefile.all_lib_flags().make_paths_absolute(&make_dir);
-    };
+        let rel_to = lmp_dir.join("src/MAKE").canonicalize()?.into_dir()?;
+
+        // These are collected for bindgen, so that it has the right preprocessor
+        // definitions and can find all the necessary .h files.
+        defines = makefile.gather_flags(&[
+            "LMP_INC",
+            "MPI_INC", "FFT_INC", "JPG_INC",
+        ]).make_paths_absolute(&rel_to);
+
+        // These are collected for rustc. This is necessary when building static libraries
+        // because the final linker command will be produced by rustc.
+        lib_flags = makefile.gather_flags(&[
+            "MPI_PATH", "FFT_PATH", "JPG_PATH",
+            "MPI_LIB",  "FFT_LIB",  "JPG_LIB",
+        ]).make_paths_absolute(&rel_to);
+    }; // scope
 
     vec_from_features![
         "user-misc" => "yes-user-misc",
@@ -126,9 +136,9 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
 
     // Make src/STUBS/libmpi_stubs.a
     // Needed for serial builds. Quick and harmless to build for other builds.
-    // Don't worry; the Makefile is what will determine whether we actually *use* it.
+    // Don't worry; the Makefile will determine whether we actually *use* it.
     ::make::nojay(&lmp_dir).arg("mpi-stubs").run_custom().unwrap();
-    
+
     // Make src/liblammps.a
     ::make::run_fast_and_loose(
         &lmp_dir,
@@ -154,7 +164,7 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
 fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
     let BuildMeta { defines } = meta;
 
-    let lmp_dir = LammpsDir::get();
+    let lmp_dir = lammps_repo_dir();
     let out_path = PathDir::new(env::expect("OUT_DIR"))?;
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
@@ -325,7 +335,7 @@ mod env {
         let var = "RUST_LAMMPS_MAKEFILE";
         match get_rerun_nonempty(var) {
             None => {
-                let path = LammpsDir::get().join("src/MAKE/Makefile.serial");
+                let path = lammps_repo_dir().join("src/MAKE/Makefile.serial");
                 PathFile::new(&path)
                     .unwrap_or_else(|e| panic!("Bug in lammps-sys!: {}", e))
             },
@@ -362,32 +372,6 @@ mod env {
 
 // ----------------------------------------------------
 
-struct LammpsDir(PathDir);
-impl ::std::ops::Deref for LammpsDir {
-    type Target = PathDir;
-    fn deref(&self) -> &PathDir { &self.0 }
-}
-
-impl LammpsDir {
-    pub fn get() -> Self {
-        lammps_repo_dir().map(LammpsDir)
-            .expect("Could not find lammps submodule")
-    }
-
-    /// For creating thine makefile.
-    pub fn create_mine_makefile(&self, name: &str) -> PathResult<FileWrite> {
-        let make = PathDir::new(self.join("src/MAKE"))?; // should exist
-
-        let mine = make.join("MINE"); // might not exist yet
-        let _ = ::std::fs::create_dir(&mine);
-        let mine = PathDir::new(mine)?;
-
-        FileWrite::create(mine.join(format!("Makefile.{}", name)))
-    }
-}
-
-// ----------------------------------------------------
-
 // When conveying preprocessor flags from lammps to bindgen,
 // we must parse them to be able to fix relative include paths.
 //
@@ -406,7 +390,7 @@ const SHORTS_WITH_REQUIRED_ARGS: &'static [&'static str] = &[
 ];
 
 // A flag for the C compiler (or preprocessor or linker).
-enum CcFlag {
+pub enum CcFlag {
     // a "-DNAME" flag (or "-DNAME=VALUE", we don't care)
     Define(String),
     // an "-Ipath/to/include" flag (or "-I" "path/to/include").
@@ -549,72 +533,27 @@ mod makefile {
             Ok(())
         }
 
-        // Get all the "-D" flags. ("-D" included)
-        pub fn lmp_defines(&self) -> Vec<String> {
-            self.var_def("LMP_INC")
-                .expect("could not locate LMP_INC definition in makefile")
-                .get().split_whitespace().map(|s| s.into()).collect()
-        }
-
-        // Get all the "-D" flags and "-I" flags for headers.
-        // These are communicated to bindgen.
-        //
-        // Purposes:
-        // - communicate flags like LAMMPS_EXCEPTIONS to bindgen
-        // - help bindgen find the header files for the MPI STUBS library
-        //   in serial builds of LAMMPS.
-        pub fn all_inc_flags(&self) -> CcFlags {
-            self._concatenate_vars(&[
-                "LMP_INC", "MPI_INC", "FFT_INC", "JPG_INC",
-            ])
-        }
-
-        pub fn all_lib_flags(&self) -> CcFlags {
-            self._concatenate_vars(&[
-                "MPI_PATH", "FFT_PATH", "JPG_PATH",
-                "MPI_LIB",  "FFT_LIB",  "JPG_LIB",
-            ])
-        }
-
-        fn _concatenate_vars(&self, vars: &[&str]) -> CcFlags {
-            let mut flags = String::new();
-            for &var in vars {
-                let panic = || panic!("could not locate {} definition in makefile", var);
-                flags += " ";
-                flags += self.var_def(var).unwrap_or_else(panic).get();
-            }
-            CcFlags::parse(&flags)
-        }
-
-        pub fn with_lmp_defines<Ss>(mut self, defs: Ss) -> Self
-        where Ss: IntoIterator, Ss::Item: Into<String>,
-        {
-            // validate defs
-            let defs = defs.into_iter().map(|s| s.into()).inspect(|s| {
-                let mut words = s.split_whitespace();
-                let word = words.next().unwrap();
-                assert!(word.len() > 0);
-                assert!(word.starts_with("-D"));
-                assert!(words.next().is_none());
-            });
-
-            self.var_def_mut("LMP_INC")
-                .expect("could not locate LMP_INC definition in makefile")
-                .set(&defs.join(" "));
-            self
-        }
-
         // get a handle for reading a simple variable assignment
-        pub fn var_def(&self, name: &str) -> Option<VarDef> {
-            self._var_def_data(name).map(|(line, start_col)| {
-                VarDef_ { makefile: self, line, start_col }
-            })
+        pub fn var_def(&self, name: &str) -> VarDef {
+            let (line, start_col) = self._expect_var_def_data(name);
+            VarDef_ { makefile: self, line, start_col }
         }
 
-        pub fn var_def_mut(&mut self, name: &str) -> Option<VarDefMut> {
-            self._var_def_data(name).map(|(line, start_col)| {
-                VarDef_ { makefile: self, line, start_col }
-            })
+        pub fn var_def_mut(&mut self, name: &str) -> VarDefMut {
+            let (line, start_col) = self._expect_var_def_data(name);
+            VarDef_ { makefile: self, line, start_col }
+        }
+
+        pub fn gather_flags(&self, vars: &[&str]) -> CcFlags {
+            let strings = vars.iter().map(|v| self.var_def(v).text().to_string());
+            CcFlags::parse(&strings.join(" "))
+        }
+
+        fn _expect_var_def_data(&self, name: &str) -> (usize, usize) {
+            self._var_def_data(name)
+                .unwrap_or_else(|| {
+                    panic!("could not locate {} definition in makefile", name)
+                })
         }
 
         fn _var_def_data(&self, name: &str) -> Option<(usize, usize)> {
@@ -661,15 +600,18 @@ mod makefile {
 
     impl<T: ::std::ops::Deref<Target=LammpsMakefile>> VarDef_<T> {
         /// Read the variable's definition
-        pub fn get(&self) -> &str {
+        pub fn text(&self) -> &str {
             let VarDef_ { ref makefile, line, start_col } = *self;
             &(**makefile).0[line][start_col..]
         }
+
+        pub fn flags(&self) -> CcFlags
+        { CcFlags::parse(self.text()) }
     }
 
     impl<T: ::std::ops::DerefMut<Target=LammpsMakefile>> VarDef_<T> {
         /// Write a value for the variable
-        pub fn set<S: AsRef<str>>(&mut self, s: S) {
+        pub fn set_text<S: AsRef<str>>(&mut self, s: S) {
             let s = s.as_ref();
 
             assert!(!s.ends_with("\\")); // what are you trying to pull?
@@ -679,6 +621,10 @@ mod makefile {
             line.truncate(start_col);
             *line += s;
         }
+
+        pub fn set_flags<Ss>(&mut self, iter: Ss)
+        where Ss: IntoIterator<Item=CcFlag>,
+        { self.set_text(iter.into_iter().map(WithoutSpace).join(" ")) }
     }
 }
 
