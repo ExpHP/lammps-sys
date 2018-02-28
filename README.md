@@ -9,7 +9,7 @@ Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-sc
 <!-- Please remember to update ALL TOML examples, not just this one! -->
 ```toml
 [dependencies.lammps-sys]
-tag = "v0.3.0"
+tag = "v0.4.0"
 git = "https://github.com/ExpHP/lammps-sys"
 ```
 
