@@ -86,8 +86,10 @@ In theory, using cargo features to control packages allows a library that depend
 Enabling OpenMP will require you to supply your own Makefile.
 
 * If you are not familiar with the process of building LAMMPS, clone [the lammps source] and follow their instructions to learn how to compile an executable.
-* Compile a LAMMPS executable with OpenMP support. This will require you to browse around their prepackaged makefiles and possibly make one of your own. You will know you have succeeded when the lammps binary accepts the command `"package omp 0"` and does not emit any warnings or errors.
-* Set the environment variable `RUST_LAMMPS_MAKEFILE` to an absolute path to the makefile.
+* Compile a LAMMPS executable with OpenMP support. You won't be *using* any of these build artefacts, but bear with me; the mere act of compiling will require you to browse around their prepackaged makefiles and (very likely) make one of your own.
+  * `OPTIONS/Makefile.omp` is a good starting point.  Because MPI support in `lammps-sys` is hazy, I suggest borrowing the `MPI_` lines from `Makefile.serial` to link in the STUBS library.
+  * You will know you have succeeded when the lammps binary accepts the command `"package omp 0"` and does not emit any warnings or errors.
+* Save your working makefile somewhere special, and set an absolute path to it in the environment variable `RUST_LAMMPS_MAKEFILE`.
 
 #### Supplying `-fopenmp` at linking
 
