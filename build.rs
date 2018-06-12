@@ -7,7 +7,6 @@ extern crate walkdir;
 #[macro_use] extern crate extension_trait;
 
 use ::path_abs::{PathArc, PathDir, PathFile, FileRead, FileWrite};
-use ::path_abs::{Result as PathResult};
 type BoxResult<T> = Result<T, Box<std::error::Error>>;
 use ::walkdir::WalkDir;
 
@@ -24,10 +23,6 @@ use ::std::borrow::Borrow;
 // In any case, these require continued maintenence so that they
 // accurately reflect the directory structure.
 
-fn lammps_git_dir() -> PathResult<PathDir> {
-    PathDir::new(".git/modules/lammps")
-}
-
 fn lammps_repo_dir() -> PathDir {
     const PATH: &'static str = "lammps";
     // This library might do bad things if lmp_dir is a symlink,
@@ -35,7 +30,6 @@ fn lammps_repo_dir() -> PathDir {
     let msg = "Could not find lammps submodule";
     assert!(!PathArc::new(PATH).symlink_metadata().expect(msg).file_type().is_symlink());
     PathDir::new(PATH).expect(msg)
-
 }
 
 // ----------------------------------------------------
@@ -212,7 +206,7 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
 fn _main_print_reruns() -> PanicResult<()> {
     // Because we clean 'source' by deleting *literally everything*, there's no point
     // in checking it for any changes. Only the checked-out commit hash matters.
-    let git_dir = lammps_git_dir()?;
+    let git_dir = lammps_dotgit_dir()?;
     assert!(git_dir.join("HEAD").exists());
     rerun_if_changed(git_dir.join("HEAD").display());
 
@@ -235,6 +229,27 @@ fn rerun_if_changed_recursive(root: &Path) -> PanicResult<()> {
 
 fn rerun_if_changed<T: Display>(path: T) { println!("cargo:rerun-if-changed={}", path); }
 fn rerun_if_env_changed<T: Display>(var: T) { println!("cargo:rerun-if-env-changed={}", var); }
+
+fn lammps_dotgit_dir() -> BoxResult<PathDir> {
+    // HACK: git submodules handled normally have a ".git file"
+    //       containing the path to the true .git.
+    //       ...but cargo does not handle submodules normally when the
+    //       crate is built as an external dependency, so we must be
+    //       equipped to handle both cases.
+    let mut path = lammps_repo_dir().join(".git").canonicalize()?;
+    while path.is_file() {
+        let text = ::std::fs::read_to_string(&path)?;
+        let line = text.lines().next().expect("empty .git file!");
+
+        assert!(text.starts_with("gitdir:"));
+        let line = &line["gitdir:".len()..];
+
+        path = {
+            PathArc::new(path.parent().unwrap()).join(line.trim()).canonicalize()?
+        };
+    }
+    Ok(PathDir::new(path)?)
+}
 
 // Read lines of a simple text format where:
 // - comments begin with a certain unescapable delimiter and may appear inline
