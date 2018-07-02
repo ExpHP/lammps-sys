@@ -15,7 +15,7 @@ fn main() {
             Err(env::VarError::NotPresent) => "".to_string(),
             Err(e) => panic!("{}", e),
         };
-        let path = format!("fake-system{}{}", path_separator, path);
+        let path = format!("src/fake-system{}{}", path_separator, path);
         env::set_var("C_INCLUDE_PATH", path);
     }
 
