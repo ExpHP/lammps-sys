@@ -117,7 +117,7 @@ Prior versions of `lammps-sys` used the dynamic linking model, which made this p
 
 <!-- DO NOT UPDATE THIS VERSION NUMBER! -->
 <!-- It should remain at 0.3.0, the last version with dynamic linking. -->
-If that does not deter you, however, feel free to check it out: [`lammps-sys v0.3.0`](https://github.com/ExpHP/lammps-sys/tree/v0.3.0)
+If that does not deter you, however, feel free to check it out: [`lammps-sys v0.3.x`](https://github.com/ExpHP/lammps-sys/tree/0.3.x)
 
 ## [License](COPYING)
 
