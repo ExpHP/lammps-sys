@@ -1,6 +1,8 @@
-# `lammps-sys`
+# `lammps-sys` (0.3 branch)
 
 Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
+
+**This is the `0.3.x` branch, which does dynamic linking.** This branch is still actively maintained because I still use it in my own work.  (the newer `0.4.x` branch lost the ability to use custom builds of LAMMPs)
 
 ## Usage
 
@@ -8,7 +10,7 @@ Automatically-generated Rust bindings for the C interface of LAMMPS, the [*Large
 
 ```toml
 [dependencies.lammps-sys]
-tag = "v0.3.0"
+tag = "v0.3.1"
 git = "https://github.com/ExpHP/lammps-sys"
 ```
 
@@ -65,7 +67,7 @@ However, *if you must:*
 
 ```toml
 [dependencies.lammps-sys]
-tag = "v0.2.0"
+tag = "v0.3.1"
 git = "https://github.com/ExpHP/lammps-sys"
 features = ["system-mpi"]
 ```
