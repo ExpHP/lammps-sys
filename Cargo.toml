@@ -15,22 +15,110 @@ extension-trait = "0.1.2"
 [features]
 default = ["exceptions"]
 
-# Runs 'make yes-user-misc'.
-# Adds support for a variety of user-contributed potentials.
-user-misc = []
+#-----------------------------
+# Deprecated; now just aliases
 
-# Runs 'make yes-user-omp'.
-# Includes the omp package and omp potentials.
-# May require additional setup beyond that which is automatically
-# provided by enabling the feature. (Honestly, I'm not sure!)
-user-omp = []
+user-misc = ["package-user-misc"]
+user-omp = ["package-user-omp"]
 
-# Defines LAMMPS_EXCEPTIONS.
-# With it, you get functions for inspecting Lammps' error state.
-# Without it, Lammps will gleefully abort the entire process.
+#-----------------------------
+# Additional bindings
+
+# Causes Lammps to throw exceptions rather than abort, by defining
+# the C preprocessor macro `LAMMPS_EXCEPTIONS`.
+#
+# Exposes the following additional bindings:
+# + `lammps_has_error`
+# + `lammps_get_last_error_message`
+#
+# In static builds, it will also automatically define .
+# so that this does not need to be added via a custom makefile.
 exceptions = []
 
-# Defines LAMMPS_BIGBIG.
-# Enables support for obscenely large structures. Are two billion atoms
-# really not enough for you?
+# (FIXME: This feature is not additive because it changes the signature
+#         of an existing binding)
+# Enables support for obscenely large structures (> two billion atoms), by defining
+# the C preprocessor macro `LAMMPS_BIGBIG`.
 bigbig = []
+
+#-----------------------------
+# Package flags
+#
+# Each of the following features corresponds to one of Lammps' optional packages,
+# detailed on https://lammps.sandia.gov/doc/Packages.html.
+#
+# These are low level features that correspond directly to the `make yes-xyz`
+# commands.  That is, activating the feature `"package-manybody"` simply means
+# that `make yes-manybody` will be run prior to the build.
+#
+# This will be insufficient for certain packages such as POEMS or REAX which
+# have additional components that must be built.  Eventually, higher-level
+# features may be implemented for properly enabling such packages!
+
+package-asphere = []
+package-body = []
+package-class2 = []
+package-colloid = []
+package-compress = []
+package-coreshell = []
+package-dipole = []
+package-gpu = []
+package-granular = []
+package-kim = []
+package-kokkos = []
+package-kspace = []
+package-latte = []
+package-manybody = []
+package-mc = []
+package-meam = []
+package-misc = []
+package-molecule = []
+package-mpiio = []
+package-mscg = []
+package-opt = []
+package-peri = []
+package-poems = []
+package-python = []
+package-qeq = []
+package-reax = []
+package-replica = []
+package-rigid = []
+package-shock = []
+package-snap = []
+package-srd = []
+package-voronoi = []
+
+package-user-atc = []
+package-user-awpmd = []
+package-user-bocs = []
+package-user-cgdna = []
+package-user-cgsdk = []
+package-user-colvars = []
+package-user-diffraction = []
+package-user-dpd = []
+package-user-drude = []
+package-user-eff = []
+package-user-fep = []
+package-user-h5md = []
+package-user-intel = []
+package-user-lb = []
+package-user-mgpt = []
+package-user-misc = []
+package-user-manifold = []
+package-user-meamc = []
+package-user-meso = []
+package-user-mofff = []
+package-user-molfile = []
+package-user-netcdf = []
+package-user-omp = []
+package-user-phonon = []
+package-user-qmmm = []
+package-user-qtb = []
+package-user-quip = []
+package-user-reaxc = []
+package-user-smd = []
+package-user-smtbq = []
+package-user-sph = []
+package-user-tally = []
+package-user-uef = []
+package-user-vtk = []

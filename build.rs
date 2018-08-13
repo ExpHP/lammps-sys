@@ -6,6 +6,21 @@ extern crate path_abs; // better error messages
 extern crate walkdir;
 #[macro_use] extern crate extension_trait;
 
+// ----------------------------------------------------
+
+macro_rules! vec_from_features {
+    ($( $feat:expr => $expr:expr, )*) => {{
+        #[allow(unused_mut)]
+        let mut vec = vec![];
+        $( #[cfg(feature = $feat)] { vec.push($expr); })*
+        vec
+    }};
+}
+
+mod packages;
+
+// ----------------------------------------------------
+
 use ::path_abs::{PathArc, PathDir, PathFile, FileRead, FileWrite};
 type BoxResult<T> = Result<T, Box<std::error::Error>>;
 use ::walkdir::WalkDir;
@@ -30,18 +45,6 @@ fn lammps_repo_dir() -> PathDir {
     let msg = "Could not find lammps submodule";
     assert!(!PathArc::new(PATH).symlink_metadata().expect(msg).file_type().is_symlink());
     PathDir::new(PATH).expect(msg)
-}
-
-// ----------------------------------------------------
-// macros
-
-macro_rules! vec_from_features {
-    ($( $feat:expr => $expr:expr, )*) => {{
-        #[allow(unused_mut)]
-        let mut vec = vec![];
-        $( #[cfg(feature = $feat)] { vec.push($expr); })*
-        vec
-    }};
 }
 
 // ----------------------------------------------------
@@ -120,13 +123,9 @@ fn _main_do_static_build() -> PanicResult<BuildMeta> {
         ]).make_paths_absolute(&rel_to);
     }; // scope
 
-    vec_from_features![
-        "user-misc" => "yes-user-misc",
-        "user-omp"  => "yes-user-omp",
-        // TODO: scout the LAMMPS docs/codebase for more
-    ].into_iter().for_each(|target: &str| {
-        ::make::jay(&lmp_dir).arg(target).run_custom().unwrap();
-    });
+    for rule in ::packages::rules_from_features() {
+        ::make::nojay(&lmp_dir).arg(rule).run_custom().unwrap();
+    }
 
     // Make src/STUBS/libmpi_stubs.a
     // Needed for serial builds. Quick and harmless to build for other builds.
@@ -269,6 +268,7 @@ fn read_simple_lines<R: BufRead>(f: R, comment: &str) -> IoResult<Vec<String>> {
 extension_trait!{
     CommandExt for Command {
         fn run_custom(&mut self) -> PanicResult<()> {
+            eprintln!("Running: {:?}", self);
             // the global stdout is for cargo.
             // FIXME: what if stdout has useful info...?
             assert!(self.stdout(Stdio::null()).status()?.success());
