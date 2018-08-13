@@ -1,4 +1,7 @@
 # `lammps-sys` release notes
+## v0.5.0 (Feb 27 2018)
+- Add features for all packages.
+- Remove default feature for `exceptions`. Default features are too hard to disable.
 ## v0.4.0 (Feb 27 2018)
 - Automatically builds LAMMPS from source now.
 - Completely different building model.  Formerly, only dynamic was supported; now, only static is supported.
