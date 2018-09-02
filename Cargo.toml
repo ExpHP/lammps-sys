@@ -3,6 +3,7 @@ name = "lammps-sys"
 version = "0.5.0"
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 links = "lammps"
+build = "build/main.rs"
 
 [build-dependencies]
 bindgen = "0.31"
@@ -30,9 +31,6 @@ user-omp = ["package-user-omp"]
 # Exposes the following additional bindings:
 # + `lammps_has_error`
 # + `lammps_get_last_error_message`
-#
-# In static builds, it will also automatically define .
-# so that this does not need to be added via a custom makefile.
 exceptions = []
 
 # (FIXME: This feature is not additive because it changes the signature
