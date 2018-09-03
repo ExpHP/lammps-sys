@@ -1,10 +1,10 @@
-extern crate make_cmd;
 extern crate num_cpus;
 
 extern crate bindgen;
 extern crate path_abs; // better error messages
 extern crate walkdir;
 extern crate pkg_config;
+extern crate cmake;
 #[macro_use] extern crate extension_trait;
 
 // ----------------------------------------------------
@@ -24,7 +24,7 @@ mod build;
 
 // ----------------------------------------------------
 
-use ::path_abs::{PathArc, PathDir, PathFile, FileRead};
+use ::path_abs::{PathArc, PathDir, FileRead};
 type BoxResult<T> = Result<T, Box<std::error::Error>>;
 use ::walkdir::WalkDir;
 
@@ -89,7 +89,6 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
     let make_gen = || {
         let mut gen = ::bindgen::Builder::default();
 
-        // Lammps' poorly-named header file...
         gen = gen.header_contents(
             "include_lammps.h",
             &format!(r##"#include <{}>"##, header),
@@ -119,8 +118,10 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
 // ----------------------------------------------------
 
 fn _main_print_reruns() -> PanicResult<()> {
-    // Because we clean 'source' by deleting *literally everything*, there's no point
-    // in checking it for any changes. Only the checked-out commit hash matters.
+    // We won't print rerun directives for things in 'lammps' because there's a lot of files
+    // there and you shouldn't be touching it anyways.
+    //
+    // ...but we will rebuild in response to checking out a new commit for the submodule.
     let git_dir = build::lammps_dotgit_dir()?;
     assert!(git_dir.join("HEAD").exists());
     rerun_if_changed(git_dir.join("HEAD").display());
@@ -184,22 +185,6 @@ mod env {
     use super::*;
     use ::std::env;
 
-    pub fn makefile() -> PathFile {
-        let var = "RUST_LAMMPS_MAKEFILE";
-        match get_rerun_nonempty(var) {
-            None => {
-                let path = build::lammps_repo_dir().join("src/MAKE/Makefile.serial");
-                PathFile::new(&path)
-                    .unwrap_or_else(|e| panic!("Bug in lammps-sys!: {}", e))
-            },
-            Some(path) => {
-                // user-oriented error message; mention the env var.
-                PathFile::new(path)
-                    .unwrap_or_else(|e| panic!("Error in {}: {}", var, e))
-            },
-        }
-    }
-
     pub fn mode() -> Mode {
         let var = "RUST_LAMMPS_SOURCE";
         let value = get_rerun_nonempty(var).unwrap_or_else(|| String::from("auto"));
@@ -236,23 +221,6 @@ mod env {
 
 // ----------------------------------------------------
 
-// When conveying preprocessor flags from lammps to bindgen,
-// we must parse them to be able to fix relative include paths.
-//
-// As you may well be aware, attempting to extract a specific
-// option's values from a unix-style argument list (e.g. "get all
-// of the -I directories from this argument stream") is actually
-// *impossible* to do correctly without knowing the complete set
-// of options implemented by the program. In other words, the
-// code you are about to read willfully attempts to solve an
-// impossible problem. Needless to say, it makes MANY assumptions.
-//
-// My apologies in advance. I saw no other way.
-
-const SHORTS_WITH_REQUIRED_ARGS: &'static [&'static str] = &[
-    "-D", "-L", "-l", "-I",
-];
-
 // A flag for the C compiler (or preprocessor or linker).
 #[derive(PartialEq, Eq)]
 pub enum CcFlag {
@@ -266,39 +234,15 @@ pub enum CcFlag {
     Lib(String),
     // an unknown argument.  We will assume it is not something
     // that would prevent the next argument from being parsed as
-    // an option, because an option value starting with -I/-l/-L
-    // seems pretty contrived.
+    // an option, because there's no reliable way to tell.
+    //
+    // This will only cause trouble if an unrecognized option is given
+    // an option argument beginning with -I/-l/-L/-D or similar, and
+    // they are separated by a space.  This seems unlikely.
     Other(String),
 }
 
-impl CcFlag {
-    fn map_paths<F>(self, f: F) -> Self
-    where F: FnOnce(PathArc) -> PathArc,
-    {
-        match self {
-            CcFlag::LibDir(s) => CcFlag::LibDir(f(s)),
-            CcFlag::IncludeDir(s) => CcFlag::IncludeDir(f(s)),
-
-            c@CcFlag::Define(_) => c,
-            c@CcFlag::Lib(_)    => c,
-            c@CcFlag::Other(_)  => c,
-        }
-    }
-}
-
 pub struct CcFlags(Vec<CcFlag>);
-
-/// Wrapper with appropriate display impl for cargo:rustc-flags
-struct RustLibFlags(CcFlags);
-impl Display for RustLibFlags {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // I hope you don't need spaces in your paths, because we don't quote...
-        // Also, this puts a space between the option and its arguments
-        // in order to cater to cargo, who will be parsing our lib args
-        // for its own evil porpoises.
-        write!(f, "{}", (self.0).0.iter().map(WithSpace).join(" "))
-    }
-}
 
 impl CcFlag {
     fn fmt_with_space(&self, space: &str, f: &mut fmt::Formatter) -> fmt::Result {
@@ -313,6 +257,9 @@ impl CcFlag {
 }
 
 // Displays as "-l iberty"
+//
+// This format is required for `cargo:rustc-flags`.
+#[allow(unused)]
 struct WithSpace<C>(C);
 impl<C> fmt::Display for WithSpace<C> where C: Borrow<CcFlag> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
@@ -320,62 +267,18 @@ impl<C> fmt::Display for WithSpace<C> where C: Borrow<CcFlag> {
 }
 
 // Displays as "-liberty"
+//
+// This format is convenient for producing atomic arguments without fear
+// of quoting issues.
 struct WithoutSpace<C>(C);
 impl<C> fmt::Display for WithoutSpace<C> where C: Borrow<CcFlag> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     { self.0.borrow().fmt_with_space("", f) }
 }
 
-// Wrappers with appropriate display impls
-
 impl CcFlags {
-    fn parse(string: &str) -> Self {
-        enum Class<'a> {
-            OptWithArg(&'a str, &'a str),
-            Other(&'a str),
-        }
-
-        let mut words: Vec<_> = string.split_whitespace().rev().collect();
-        let mut out = vec![];
-        while let Some(first) = words.pop() {
-
-            let class = 'class: loop {
-                for &prefix in SHORTS_WITH_REQUIRED_ARGS {
-                    if first == prefix {
-                        let panic = || panic!("{} with no argument", prefix);
-                        let arg = words.pop().unwrap_or_else(panic);
-                        break 'class Class::OptWithArg(prefix, arg);
-                    } else if first.starts_with(prefix) {
-                        break 'class Class::OptWithArg(prefix, &first[prefix.len()..]);
-                    }
-                }
-                break 'class Class::Other(first.into());
-            };
-
-            out.push(match class {
-                Class::OptWithArg("-l", s) => CcFlag::Lib(s.into()),
-                Class::OptWithArg("-D", s) => CcFlag::Define(s.into()),
-                Class::OptWithArg("-I", s) => CcFlag::IncludeDir(PathArc::new(s)),
-                Class::OptWithArg("-L", s) => CcFlag::LibDir(PathArc::new(s)),
-                Class::OptWithArg(opt, _) => panic!("Missing match arm for {}", opt),
-                Class::Other(s) => CcFlag::Other(s.into()),
-            })
-        }
-        CcFlags(out)
-    }
-
     fn to_args(&self) -> Vec<String> {
         self.0.iter().map(|x| WithoutSpace(x).to_string()).collect()
-    }
-
-    // Canonicalize pathlike vars.
-    // This is idempotent; after you do it once, all paths are absolute.
-    fn make_paths_absolute(self, root: &PathDir) -> Self {
-        CcFlags({
-            self.0.into_iter()
-                .map(|x| x.map_paths(|path| root.join(path)))
-                .collect()
-        })
     }
 }
 
