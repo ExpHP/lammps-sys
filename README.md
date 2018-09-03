@@ -1,3 +1,5 @@
+**NOTE: This documentation is for a prerelease. For the documentation of the latest release, see [the v0.4.0 README](https://github.com/ExpHP/lammps-sys/tree/v0.4.0).**
+
 # `lammps-sys`
 
 Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
