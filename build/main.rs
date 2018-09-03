@@ -234,6 +234,7 @@ const SHORTS_WITH_REQUIRED_ARGS: &'static [&'static str] = &[
 ];
 
 // A flag for the C compiler (or preprocessor or linker).
+#[derive(PartialEq, Eq)]
 pub enum CcFlag {
     // a "-DNAME" flag (or "-DNAME=VALUE", we don't care)
     Define(String),
