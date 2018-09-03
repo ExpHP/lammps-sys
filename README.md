@@ -23,15 +23,55 @@ If you just want to see the rust signatures for the bindings, you can also gener
 ```
 git clone https://github.com/ExpHP/lammps-sys
 cd lammps-sys
-cargo doc
-chromium target/doc/lammps_sys/index.html
+cargo doc --open
 ```
 
-## Linking
+## Modes of operation
 
-As of version v0.4, *only static linking is supported.*
+`lammps-sys` will first probe for a system `liblammps` using `pkg-config`, and, failing that, will build it from source. This behavior may also be configured through the `RUST_LAMMPS_SOURCE` environment variable.
 
-LAMMPS is automatically downloaded and built from source.  The default settings hopefully work out-of-the-box on most systems, though it might not be super fast.  You can configure the build if necessary to enable features like OpenMP.
+See the following documents for additional information:
+
+### Linking a system library
+
+See [Linking a system LAMMPS library](doc/linking-a-system-library.md).
+
+### Building from source
+
+See [Automatically building LAMMPS from source](doc/building-from-source.md).
+
+## Configuration
+
+### Environment variables
+
+The following environment variables are used by `lammps-sys` to control the build:
+
+* **`RUST_LAMMPS_SOURCE`**
+  * `RUST_LAMMPS_SOURCE=auto`:  Try to link a system library, else build from source. **(default)**
+  * `RUST_LAMMPS_SOURCE=system`:  Always link the system lammps library (else report an error explaining why this failed)
+  * `RUST_LAMMPS_SOURCE=build`:  Always build from source
+* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate when building from source.  See the files in [`src/MAKE`] of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
+
+### Cargo features
+
+#### `exceptions`
+
+Enables the following API functions by ensuring that `LAMMPS_EXCEPTIONS` is defined:
+
+```
+lammps_has_error
+lammps_get_last_error_message
+```
+
+The system library will be skipped if it was not built with the definition.
+
+#### Optional packages
+
+There are a number of cargo features named with the prefix `package-`.  These are in one-to-one correspondence with LAMMPS' optional features [documented here](https://lammps.sandia.gov/doc/Packages.html), and each feature `package-abc` corresponds directly to running the command `make yes-abc` prior to building LAMMPS.
+
+Unfortunately, these features are insufficient to actually *use* some of the packages.  For instance, the POEMS package requires building and linking an additional library, which `lammps-sys` currently provides no way to achieve. (sorry!)
+
+You should activate features for all of the packages used directly by your crate. Unfortunately, these currently only have an effect when building LAMMPS from source (see the cautionary discussion about packages in [Linking a system LAMMPS library](doc/linking-a-system-library.md)).
 
 ## Does it work?
 
@@ -45,87 +85,13 @@ LAMMPS (31 Mar 2017)
 Total wall time: 0:00:00
 ```
 
-Be sure to try this using the environment variables and `--features` that you plan to enable in your own project.
+## License
 
-## Configuration
+Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see the file [`COPYING`](COPYING) for more details.
 
-### Environment variables
+## Release notes
 
-The following environment variables are used by `lammps-sys` to control the build:
-
-* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate.  See the files in [`src/MAKE`] of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
-
-### Cargo features
-
-#### Preprocessor Flags
-
-The following flags add functions to the C API, and can be enabled through features.
-
-| Feature | Effect | Package docs |
-| ------- | ------ | ----- |
-| **`exceptions`** | `-DLAMMPS_EXCEPTIONS` | Makes Lammps report errors through new API functions. **Without this feature, LAMMPS will abort the process on error.** |
-| `bigbig`  | `-DLAMMPS_BIGBIG` | Adds support for ridiculously large structures, and adds some related functions to the C bindings. |
-
-**Bolded** features are enabled by default.
-
-#### Packages
-
-Lammps' packages are configured through cargo features, which cause `lammps-sys` to run the appropriate makefile target before building Lammps. Only a few packages are currently supported; I only added what I needed. PRs to add features for more packages are welcome.
-
-| Feature | Effect | Package docs |
-| ------- | ------ | ----- |
-| `user-misc` | Runs `make yes-user-misc` | [USER-MISC package](http://lammps.sandia.gov/doc/Section_packages.html#user-misc-package) |
-| `user-omp`  | Runs `make yes-user-omp` | [USER-OMP package](http://lammps.sandia.gov/doc/accelerate_omp.html) |
-
-In theory, using cargo features to control packages allows a library that depends on `lammps-sys` to enable a few specific packages it requires without having to dictate the entire build. (Though in practice I rather doubt any library will ever depend on `lammps-sys`!)
-
-## How-to
-
-### Enabling OpenMP
-
-Enabling OpenMP will require you to supply your own Makefile.
-
-* If you are not familiar with the process of building LAMMPS, clone [the lammps source] and follow their instructions to learn how to compile an executable.
-* Compile a LAMMPS executable with OpenMP support. You won't be *using* any of these build artefacts, but bear with me; the mere act of compiling will require you to browse around their prepackaged makefiles and (very likely) make one of your own.
-  * `OPTIONS/Makefile.omp` is a good starting point.  Because MPI support in `lammps-sys` is hazy, I suggest borrowing the `MPI_` lines from `Makefile.serial` to link in the STUBS library.
-  * You will know you have succeeded when the lammps binary accepts the command `"package omp 0"` and does not emit any warnings or errors.
-* Save your working makefile somewhere special, and set an absolute path to it in the environment variable `RUST_LAMMPS_MAKEFILE`.
-
-#### Supplying `-fopenmp` at linking
-
-If you get errors during the linking stage about undefined symbols from `omp_`, you may try adding the following to your `~/.cargo/config` (or to a `.cargo/config` in your own crate's directory):
-
-```
-# For building lammps-sys with openmp.
-# Not sure how this impacts other crates...
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-Clink-args=-fopenmp"]
-```
-
-(you can obtain the correct target triple for your machine by running `rustc --version -v`)
-
-If this sounds like terrible advice, that's because it probably is!  Unfortunately, it does not seem to be possible to set this flag from within a cargo build script, and I do not know of a better solution at this time.
-
-### Enabling MPI
-
-I... haven't tried it.  You can try using a custom Makefile (see [Enabling OpenMP](#enabling-openmp)).  And if everything seems to work all the way up until the linking of the final binary, you might be able to get away with a workaround like the `.cargo/config` trick to supply missing linker arguments.  In any case, [let me know how it works out for you.](https://github.com/ExpHP/lammps-sys/issues)
-
-### Using a specific/modified version of lammps
-
-This is not currently supported by `lammps-sys` in any fashion.
-
-Prior versions of `lammps-sys` used the dynamic linking model, which made this possible. However, it required a bunch of manual setup and ultimately there is no way to ensure that the bindings generated by bindgen accurately reflect the library they are linking against.
-
-<!-- DO NOT UPDATE THIS VERSION NUMBER! -->
-<!-- It should remain at 0.3.0, the last version with dynamic linking. -->
-If that does not deter you, however, feel free to check it out: [`lammps-sys v0.3.x`](https://github.com/ExpHP/lammps-sys/tree/0.3.x)
-
-## [License](COPYING)
-
-Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see the file `COPYING` for more details.
-
-## [Release notes](relnotes.md)
+See [Release notes](relnotes.md).
 
 ## Citations
 
