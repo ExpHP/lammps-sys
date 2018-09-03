@@ -110,16 +110,6 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
         .write_to_file(out_path.join("codegen/lammps.rs"))
         .expect("Couldn't write bindings for 'lammps'!");
 
-    // Segregate any other bindings into a separate module.
-    make_gen()
-        // NOTE: Despite the name, this method also happens to
-        //       blacklist functions, which is precisely what we need.
-        .blacklist_type("bindings.*")
-        .generate()
-        .expect("Unable to generate bindings for 'other'!")
-        .write_to_file(out_path.join("codegen/other.rs"))
-        .expect("Couldn't write bindings for 'other'!");
-
     Ok(())
 }
 
