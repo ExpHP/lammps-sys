@@ -34,12 +34,6 @@ user-omp = ["package-user-omp"]
 # + `lammps_get_last_error_message`
 exceptions = []
 
-# (FIXME: This feature is not additive because it changes the signature
-#         of an existing binding)
-# Enables support for obscenely large structures (> two billion atoms), by defining
-# the C preprocessor macro `LAMMPS_BIGBIG`.
-bigbig = []
-
 #-----------------------------
 # Package flags
 #

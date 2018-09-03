@@ -35,8 +35,8 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
         let mut defs = makefile.var_def("LMP_INC").flags();
         defs.0.append(&mut vec_from_features![
             "exceptions" => "LAMMPS_EXCEPTIONS".into(),
-            "bigbig"     => "LAMMPS_BIGBIG".into(),
-            // TODO: scout the LAMMPS docs/codebase for more
+            // (don't bother with LAMMPS_BIGBIG for now; if the user needs that, they should
+            //  customize the Makefile or use a system installation)
         ].into_iter().map(CcFlag::Define).collect());
         makefile.var_def_mut("LMP_INC").set_flags(defs.0);
 
