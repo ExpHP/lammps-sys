@@ -40,13 +40,7 @@ exceptions = []
 # Each of the following features corresponds to one of Lammps' optional packages,
 # detailed on https://lammps.sandia.gov/doc/Packages.html.
 #
-# These are low level features that correspond directly to the `make yes-xyz`
-# commands.  That is, activating the feature `"package-manybody"` simply means
-# that `make yes-manybody` will be run prior to the build.
-#
-# This will be insufficient for certain packages such as POEMS or REAX which
-# have additional components that must be built.  Eventually, higher-level
-# features may be implemented for properly enabling such packages!
+# See README.md for more info.
 
 package-asphere = []
 package-body = []

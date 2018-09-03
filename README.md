@@ -52,7 +52,6 @@ The following environment variables are used by `lammps-sys` to control the buil
   * `RUST_LAMMPS_SOURCE=auto`:  Try to link a system library, else build from source. **(default)**
   * `RUST_LAMMPS_SOURCE=system`:  Always link the system lammps library (else report an error explaining why this failed)
   * `RUST_LAMMPS_SOURCE=build`:  Always build from source
-* **`RUST_LAMMPS_MAKEFILE`** - A path to a LAMMPS Makefile on your local filesystem which will be used as a template by this crate when building from source.  See the files in [`src/MAKE`] of the LAMMPS source for examples.  If unset or left blank, the prepackaged makefile at `MAKE/Makefile.serial` will be used.
 
 ### Cargo features
 
@@ -69,11 +68,13 @@ The system library will be skipped if it was not built with the definition.
 
 #### Optional packages
 
-There are a number of cargo features named with the prefix `package-`.  These are in one-to-one correspondence with LAMMPS' optional features [documented here](https://lammps.sandia.gov/doc/Packages.html), and each feature `package-abc` corresponds directly to running the command `make yes-abc` prior to building LAMMPS.
-
-Unfortunately, these features are insufficient to actually *use* some of the packages.  For instance, the POEMS package requires building and linking an additional library, which `lammps-sys` currently provides no way to achieve. (sorry!)
+There are a number of cargo features named with the prefix `package-`.  These are in one-to-one correspondence with LAMMPS' optional features [documented here](https://lammps.sandia.gov/doc/Packages.html).  Activating the feature `"package-user-misc"` corresponds to supplying the cmake file with `-DPKG_USER-MISC=yes`, which in turn has a similar effect to running `make yes-user-misc` if you were to use Lammps' classic make-based build system.
 
 You should activate features for all of the packages used directly by your crate. Unfortunately, these currently only have an effect when building LAMMPS from source (see the cautionary discussion about packages in [Linking a system LAMMPS library](doc/linking-a-system-library.md)).
+
+Be aware that these flags are almost entirely untested, and it's possible that some of them are unusable or even produce invalid cmake flags.  Please file bug reports!
+
+Some packages such as POEMS or REAX have additional library components that must be built.  `lammps-sys` currently does not have any special handling for these, assuming that the cmake flags take care of this.  If they work for you, that's great!  If not, please file an issue.
 
 ## Does it work?
 
