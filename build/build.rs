@@ -1,17 +1,20 @@
 // automated builds of lammps from source
 
-use ::{PanicResult, IoResult};
+use ::{BoxResult, PanicResult, IoResult};
 use ::{BuildMeta, CcFlag, CcFlags, RustLibFlags, WithoutSpace};
-use ::lammps_repo_dir;
 use ::{env, rerun_if_changed};
 use ::std::{
     io::prelude::*,
     io::BufReader,
     process::{Command, Stdio},
 };
-use ::path_abs::{PathDir, PathFile, FileWrite};
+use ::path_abs::{PathArc, PathDir, PathFile, FileWrite};
 #[allow(unused)] // rust-lang/rust#45268
 use ::IteratorJoinExt;
+
+const SUBMODULE_PATH: &'static str = "lammps";
+
+// ----------------------------------------------------
 
 /// Build lammps from source and emit linker flags
 pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
@@ -93,7 +96,45 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
     // Forward the -l/-L flags to rustc, for reasons discussed above.
     println!("cargo:rustc-flags={}", RustLibFlags(lib_flags));
 
-    Ok(BuildMeta { defines })
+    Ok(BuildMeta {
+        // lammps' poorly-named header file
+        header: "src/library.h",
+        include_dirs: CcFlags(vec![CcFlag::IncludeDir(lmp_dir.into())]),
+        defines,
+    })
+}
+
+// ----------------------------------------------------
+
+/// Path to the lammps git submodule
+pub(crate) fn lammps_repo_dir() -> PathDir {
+    // This library might do bad things if lmp_dir is a symlink,
+    // due to path canonicalization...
+    let msg = "Could not find lammps submodule";
+    assert!(!PathArc::new(SUBMODULE_PATH).symlink_metadata().expect(msg).file_type().is_symlink());
+    PathDir::new(SUBMODULE_PATH).expect(msg)
+}
+
+/// Path to the .git directory for the lammps submodule.
+pub(crate) fn lammps_dotgit_dir() -> BoxResult<PathDir> {
+    // HACK: git submodules handled normally have a ".git file"
+    //       containing the path to the true .git.
+    //       ...but cargo does not handle submodules normally when the
+    //       crate is built as an external dependency, so we must be
+    //       equipped to handle both cases.
+    let mut path = lammps_repo_dir().join(".git").canonicalize()?;
+    while path.is_file() {
+        let text = ::std::fs::read_to_string(&path)?;
+        let line = text.lines().next().expect("empty .git file!");
+
+        assert!(text.starts_with("gitdir:"));
+        let line = &line["gitdir:".len()..];
+
+        path = {
+            PathArc::new(path.parent().unwrap()).join(line.trim()).canonicalize()?
+        };
+    }
+    Ok(PathDir::new(path)?)
 }
 
 // ----------------------------------------------------

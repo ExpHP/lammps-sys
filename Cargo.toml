@@ -12,6 +12,7 @@ path_abs = { version = "0.3.16", default-features = false }
 num_cpus = "1.8.0"
 walkdir = "2.1.4"
 extension-trait = "0.1.2"
+pkg-config = "0.3.14"
 
 [features]
 default = []

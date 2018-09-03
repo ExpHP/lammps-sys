@@ -4,6 +4,7 @@ extern crate num_cpus;
 extern crate bindgen;
 extern crate path_abs; // better error messages
 extern crate walkdir;
+extern crate pkg_config;
 #[macro_use] extern crate extension_trait;
 
 // ----------------------------------------------------
@@ -18,6 +19,7 @@ macro_rules! vec_from_features {
 }
 
 mod packages;
+mod probe;
 mod build;
 
 // ----------------------------------------------------
@@ -34,31 +36,26 @@ use ::std::io::prelude::*;
 use ::std::borrow::Borrow;
 
 // ----------------------------------------------------
-// "Constants". Sorta.
-// In any case, these require continued maintenence so that they
-// accurately reflect the directory structure.
 
-fn lammps_repo_dir() -> PathDir {
-    const PATH: &'static str = "lammps";
-    // This library might do bad things if lmp_dir is a symlink,
-    // due to path canonicalization...
-    let msg = "Could not find lammps submodule";
-    assert!(!PathArc::new(PATH).symlink_metadata().expect(msg).file_type().is_symlink());
-    PathDir::new(PATH).expect(msg)
+fn main() -> PanicResult<()> {
+    _main_print_reruns()?;
+
+    let meta = _main_link_library()?;
+
+    _main_gen_bindings(meta)?;
+
+    Ok(())
 }
 
-// ----------------------------------------------------
-
-fn main() {
-    fn inner() -> PanicResult<()> {
-        _main_print_reruns()?;
-
-        let meta = build::build_from_source_and_link()?;
-
-        _main_gen_bindings(meta)?;
-        Ok(())
+fn _main_link_library() -> PanicResult<BuildMeta> {
+    if let Ok(meta) = probe::probe_and_link() {
+        return Ok(meta);
+    } else {
+        // ignore errors
     }
-    inner().unwrap();
+
+    let meta = build::build_from_source_and_link()?;
+    Ok(meta)
 }
 
 // ----------------------------------------------------
@@ -66,16 +63,20 @@ fn main() {
 // Information discovered during the build that is
 // needed during bindgen.
 struct BuildMeta {
-    // a bunch of "-DFLAG" args, "-D" included
+    // "lammps/library.h" or similar. (It is not available under that path when building directly
+    //  from source, so some adjustments are needed)
+    header: &'static str,
+    // A bunch of -I arguments
+    include_dirs: CcFlags,
+    // A bunch of -D arguments
     defines: CcFlags,
 }
 
 // ----------------------------------------------------
 
 fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
-    let BuildMeta { defines } = meta;
+    let BuildMeta { header, include_dirs, defines } = meta;
 
-    let lmp_dir = lammps_repo_dir();
     let out_path = PathDir::new(env::expect("OUT_DIR"))?;
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
@@ -86,11 +87,15 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
         let mut gen = ::bindgen::Builder::default();
 
         // Lammps' poorly-named header file...
-        gen = gen.header(lmp_dir.join("src/library.h").display().to_string());
+        gen = gen.header_contents(
+            "include_lammps.h",
+            &format!(r##"#include <{}>"##, header),
+        );
 
         // Ensure that the header contains the right features corresponding
         // to what was enabled (e.g. `LAMMPS_EXCEPTIONS`).
         gen = gen.clang_args(defines.to_args());
+        gen = gen.clang_args(include_dirs.to_args());
 
         // support older versions of libclang, which will mangle even
         // the names of C functions unless we disable this.
@@ -123,7 +128,7 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
 fn _main_print_reruns() -> PanicResult<()> {
     // Because we clean 'source' by deleting *literally everything*, there's no point
     // in checking it for any changes. Only the checked-out commit hash matters.
-    let git_dir = lammps_dotgit_dir()?;
+    let git_dir = build::lammps_dotgit_dir()?;
     assert!(git_dir.join("HEAD").exists());
     rerun_if_changed(git_dir.join("HEAD").display());
 
@@ -131,7 +136,7 @@ fn _main_print_reruns() -> PanicResult<()> {
     rerun_if_changed_recursive("src".as_ref())?;
 
     let file = BufReader::new(FileRead::read("build-data/rerun-if-env-changed")?);
-    read_simple_lines(file, "#")?.into_iter().for_each(rerun_if_env_changed);
+    read_simple_lines(file, "##")?.into_iter().for_each(rerun_if_env_changed);
     Ok(())
 }
 
@@ -146,27 +151,6 @@ fn rerun_if_changed_recursive(root: &Path) -> PanicResult<()> {
 
 fn rerun_if_changed<T: Display>(path: T) { println!("cargo:rerun-if-changed={}", path); }
 fn rerun_if_env_changed<T: Display>(var: T) { println!("cargo:rerun-if-env-changed={}", var); }
-
-fn lammps_dotgit_dir() -> BoxResult<PathDir> {
-    // HACK: git submodules handled normally have a ".git file"
-    //       containing the path to the true .git.
-    //       ...but cargo does not handle submodules normally when the
-    //       crate is built as an external dependency, so we must be
-    //       equipped to handle both cases.
-    let mut path = lammps_repo_dir().join(".git").canonicalize()?;
-    while path.is_file() {
-        let text = ::std::fs::read_to_string(&path)?;
-        let line = text.lines().next().expect("empty .git file!");
-
-        assert!(text.starts_with("gitdir:"));
-        let line = &line["gitdir:".len()..];
-
-        path = {
-            PathArc::new(path.parent().unwrap()).join(line.trim()).canonicalize()?
-        };
-    }
-    Ok(PathDir::new(path)?)
-}
 
 // Read lines of a simple text format where:
 // - comments begin with a certain unescapable delimiter and may appear inline
@@ -205,7 +189,7 @@ mod env {
         let var = "RUST_LAMMPS_MAKEFILE";
         match get_rerun_nonempty(var) {
             None => {
-                let path = lammps_repo_dir().join("src/MAKE/Makefile.serial");
+                let path = build::lammps_repo_dir().join("src/MAKE/Makefile.serial");
                 PathFile::new(&path)
                     .unwrap_or_else(|e| panic!("Bug in lammps-sys!: {}", e))
             },
