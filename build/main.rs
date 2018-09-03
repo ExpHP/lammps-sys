@@ -121,7 +121,7 @@ fn _main_print_reruns() -> PanicResult<()> {
     rerun_if_changed_recursive("src".as_ref())?;
 
     let file = BufReader::new(FileRead::read("build-data/rerun-if-env-changed")?);
-    read_simple_lines(file, "##")?.into_iter().for_each(rerun_if_env_changed);
+    read_simple_lines(file, "#")?.into_iter().for_each(rerun_if_env_changed);
     Ok(())
 }
 
