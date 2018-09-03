@@ -1,5 +1,3 @@
-extern crate num_cpus;
-
 extern crate bindgen;
 extern crate path_abs; // better error messages
 extern crate walkdir;
@@ -84,30 +82,23 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
 
-    // Make a bindgen builder with flags shared by both invocations.
-    // (these things don't implement Clone...)
-    let make_gen = || {
-        let mut gen = ::bindgen::Builder::default();
+    let mut gen = ::bindgen::Builder::default();
+    gen = gen.header_contents(
+        "include_lammps.h",
+        &format!(r##"#include <{}>"##, header),
+    );
 
-        gen = gen.header_contents(
-            "include_lammps.h",
-            &format!(r##"#include <{}>"##, header),
-        );
+    // Ensure that the header contains the right features corresponding
+    // to what was enabled (e.g. `LAMMPS_EXCEPTIONS`).
+    gen = gen.clang_args(defines.to_args());
+    gen = gen.clang_args(include_dirs.to_args());
 
-        // Ensure that the header contains the right features corresponding
-        // to what was enabled (e.g. `LAMMPS_EXCEPTIONS`).
-        gen = gen.clang_args(defines.to_args());
-        gen = gen.clang_args(include_dirs.to_args());
+    // support older versions of libclang, which will mangle even
+    // the names of C functions unless we disable this.
+    gen = gen.trust_clang_mangling(false);
+    gen = gen.whitelist_function("lammps.*");
 
-        // support older versions of libclang, which will mangle even
-        // the names of C functions unless we disable this.
-        gen = gen.trust_clang_mangling(false);
-        gen
-    };
-
-    make_gen()
-        .whitelist_function("lammps.*")
-        .generate()
+    gen.generate()
         .expect("Unable to generate bindings for 'lammps'!")
         .write_to_file(out_path.join("codegen/lammps.rs"))
         .expect("Couldn't write bindings for 'lammps'!");
