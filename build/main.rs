@@ -48,14 +48,17 @@ fn main() -> PanicResult<()> {
 }
 
 fn _main_link_library() -> PanicResult<BuildMeta> {
-    if let Ok(meta) = probe::probe_and_link() {
-        return Ok(meta);
-    } else {
-        // ignore errors
+    match ::env::mode() {
+        Mode::Auto => {
+            if let Ok(meta) = probe::probe_and_link() {
+                return Ok(meta);
+            } else {
+                Ok(build::build_from_source_and_link()?)
+            }
+        },
+        Mode::BuildOnly => Ok(build::build_from_source_and_link()?),
+        Mode::SystemOnly => Ok(probe::probe_and_link()?),
     }
-
-    let meta = build::build_from_source_and_link()?;
-    Ok(meta)
 }
 
 // ----------------------------------------------------
@@ -170,6 +173,12 @@ impl<T: Display> From<T> for Never {
 
 // ----------------------------------------------------
 
+pub enum Mode {
+    Auto,
+    SystemOnly,
+    BuildOnly,
+}
+
 mod env {
     #[allow(unused_imports)]
     use super::*;
@@ -188,6 +197,17 @@ mod env {
                 PathFile::new(path)
                     .unwrap_or_else(|e| panic!("Error in {}: {}", var, e))
             },
+        }
+    }
+
+    pub fn mode() -> Mode {
+        let var = "RUST_LAMMPS_SOURCE";
+        let value = get_rerun_nonempty(var).unwrap_or_else(|| String::from("auto"));
+        match &value[..] {
+            "auto" => Mode::Auto,
+            "system" => Mode::SystemOnly,
+            "build" => Mode::BuildOnly,
+            s => panic!("Bad value for RUST_LAMMPS_SOURCE: {}", s)
         }
     }
 

@@ -1,4 +1,5 @@
 use ::{BuildMeta, CcFlag, CcFlags};
+use ::std::fmt;
 
 pub(crate) fn probe_and_link() -> Result<BuildMeta, ProbeError> {
     probe_and_link_via_pkgconfig()
@@ -12,6 +13,15 @@ pub(crate) enum ProbeError {
 impl From<::pkg_config::Error> for ProbeError {
     fn from(e: ::pkg_config::Error) -> Self {
         ProbeError::PkgConfig(e)
+    }
+}
+
+impl fmt::Display for ProbeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ProbeError::PkgConfig(e) => fmt::Display::fmt(e, f),
+            ProbeError::String(s) => fmt::Display::fmt(s, f),
+        }
     }
 }
 
@@ -37,10 +47,10 @@ fn probe_and_link_via_pkgconfig() -> Result<BuildMeta, ProbeError> {
         // NOTE: shoving subtleties like "-DLAMMPS_EXCEPTIONS=definition" under the rug.
         let needle = CcFlag::Define(String::from("LAMMPS_EXCEPTIONS"));
         if !defines.0.iter().any(|x| x == &needle) {
-            let msg = String::from(r#"\
+            let msg = String::from("\
                 system lammps was built without -DLAMMPS_EXCEPTIONS \
                 (--features=exceptions)\
-            "#);
+            ");
             return Err(ProbeError::String(msg));
         }
     }
