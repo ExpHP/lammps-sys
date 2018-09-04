@@ -12,7 +12,8 @@
 //        Compiling lammps-sys v0.4.0 (file:///home/exp/dev/rust/lammps-sys)
 //         Finished dev [unoptimized + debuginfo] target(s) in 63.48 secs
 //          Running `target/debug/examples/link-test`
-//     LAMMPS (5 Feb 2018)
+//     LAMMPS (22 Aug 2018)
+//       using 4 OpenMP thread(s) per MPI task
 //     Total wall time: 0:00:00
 //
 // The vast majority of possible problems will manifest during the linking
