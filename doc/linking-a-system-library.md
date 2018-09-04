@@ -6,9 +6,15 @@ The search for a system library can be disabled by setting `RUST_LAMMPS_SOURCE=b
 
 ## Linking Lammps itself
 
-`lammps-sys` uses `pkg-config` to locate the LAMMPS C library.  The traditional way of building lammps does not install the library in any manner (or produce the requisite pkgconfig file), but you can set this up yourself.  Lammps also comes with cmake files, which I believe will produce a working setup once installed. (**TODO:** Test this!)
+`lammps-sys` uses `pkg-config` to locate the LAMMPS C library.  The traditional way of building lammps does not install the library in any manner (or produce the requisite pkgconfig file), but you can set this up yourself.  Lammps also comes with cmake files, which will produce an *almost* working setup once installed.
 
-Example of a suitable installation: (assuming an installation path of `$HOME/.local`)
+### Tips to building
+
+If you want cmake to install headers and the pkgconfig file, you'll need to supply `-DBUILD_LIB=yes -DBUILD_SHARED_LIBS=yes` to the initial `cmake` command. (notice that it does not install headers or pkgconfig info when building a static library).
+
+The `stable_22Aug2018` release appears to have a bug where the `Libs:` line in `liblammps.pc` may end up with a trailing `@` symbol; delete it if you see it.
+
+### Example installation
 
 ```
 /home/lampam/.local
