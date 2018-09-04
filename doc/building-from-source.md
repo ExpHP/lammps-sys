@@ -1,21 +1,12 @@
 # Automatically building LAMMPS from source
 
-Under the default settings, if a system library cannot be found, `lammps-sys` will automatically build LAMMPS from source.  The default settings hopefully work out-of-the-box on most systems, though it might not be super fast.  You can configure the build if necessary to enable features like OpenMP.
-Be sure to try this using the environment variables and `--features` that you plan to enable in your own project.
+Under the default settings, if a system library cannot be found, `lammps-sys` will automatically build LAMMPS from source.  This makes use of the CMake configuration files which were only recently added to the lammps source tree.  You can configure the build if necessary to enable features like OpenMP.
 
 ## How-to
 
 ### Enabling OpenMP
 
-Enabling OpenMP will require you to supply your own Makefile.
-
-* If you are not familiar with the process of building LAMMPS, clone [the lammps source] and follow their instructions to learn how to compile an executable.
-* Compile a LAMMPS executable with OpenMP support. You won't be *using* any of these build artefacts, but bear with me; the mere act of compiling will require you to browse around their prepackaged makefiles and (very likely) make one of your own.
-  * `OPTIONS/Makefile.omp` is a good starting point.  Because MPI support in `lammps-sys` is hazy, I suggest borrowing the `MPI_` lines from `Makefile.serial` to link in the STUBS library.
-  * You will know you have succeeded when the lammps binary accepts the command `"package omp 0"` and does not emit any warnings or errors.
-* Save your working makefile somewhere special, and set an absolute path to it in the environment variable `RUST_LAMMPS_MAKEFILE`.
-
-#### Supplying `-fopenmp` at linking
+If I'm reading the CMakeLists.txt file correctly... enabling `package-user-omp` should be enough to ensure that LAMMPS gets built with OpenMP.  The trouble is what happens on the rust side of things, *after* LAMMPS is built.
 
 If you get errors during the linking stage about undefined symbols from `omp_`, you may try adding the following to your `~/.cargo/config` (or to a `.cargo/config` in your own crate's directory):
 
@@ -33,7 +24,9 @@ If this sounds like terrible advice, that's because it probably is!  Unfortunate
 
 ### Enabling MPI
 
-I... haven't tried it.  You can try using a custom Makefile (see [Enabling OpenMP](#enabling-openmp)).  And if everything seems to work all the way up until the linking of the final binary, you might be able to get away with a workaround like the `.cargo/config` trick to supply missing linker arguments.  In any case, [let me know how it works out for you.](https://github.com/ExpHP/lammps-sys/issues)
+You can enable the `mpi` feature to build lammps with MPI.  For this to work well, `mpicc` and `mpicxx` should be associated with the same MPI implementation. (these wrappers are used by the `mpi-sys` crate and LAMMPS' cmake file, respectively)
+
+As with anything else, if you have trouble, [please file an issue](https://github.com/ExpHP/lammps-sys/issues)!
 
 ## Configuration
 

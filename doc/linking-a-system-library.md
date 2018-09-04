@@ -72,4 +72,6 @@ There is, of course, the issue that the system lammps library may have been buil
 
 Unfortunately, **there is currently no way for `lammps-sys` to verify that the system `liblammps` includes optional packages like `MANYBODY`.**  Even if you activate the corresponding cargo features, it will happily link a library that is missing these packages, and this error will go entirely unnoticed until the program fails at runtime when it tries to use fixes or potentials from the package.
 
-For now, if the situation arises that there is a system lammps library missing required packages, it is recommended that you set `RUST_LAMMPS_SOURCE=build` in your environment to disable the system library search.
+Similarly, you will very likely have a not-so-fun time (read: segmentation faults) if you try to enable the `"mpi"` cargo feature when linking against a system lammps library that was not built against the same implementation reported by `mpicc --show`.
+
+For now, if the situation arises that there is a system lammps library which you cannot or do not wish to use, it is recommended that you set `RUST_LAMMPS_SOURCE=build` in your environment to disable the system library search.

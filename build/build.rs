@@ -15,33 +15,57 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
 
     let mut cmake = ::cmake::Config::new(lammps_cmake_root()?);
     let mut defines = CcFlags(vec![]);
+    let mut include_dirs = CcFlags(vec![]);
 
     cmake.define("BUILD_LIB", "yes");
-    cmake.define("BUILD_SHARED_LIBS", "no");
+    // NOTE: Building shared because I don't trust the static builds to work.
+    //
+    // (see the note below about libraries appearing in CMAKE_INSTALL_PREFIX/build, of all places--
+    //  and when I went to go build a static LAMMPS on my own just to investigate, it successfully
+    //  installed no library at all! Nothing but an `/etc` and a `/share`!
+    //  This is all on stable_22Aug2018.)
+    cmake.define("BUILD_SHARED_LIBS", "yes");
     cmake.define("BUILD_EXE", "no");
 
     for key in ::packages::cmake_flags_from_features() {
         cmake.define(key, "yes");
     }
 
+    cmake.define("BUILD_MPI", match cfg!(feature = "mpi") {
+        true => "yes",
+        false => "no",
+    });
+
     if cfg!(feature = "exceptions") {
         cmake.define("LAMMPS_EXCEPTIONS", "yes");
         defines.0.push(CcFlag::Define("LAMMPS_EXCEPTIONS".into()));
     }
 
+    // FIXME: I'm seriously confused about what cmake.build() is supposed to return.
+    //
+    // It isn't explicitly documented anywhere, but there are examples in the `cmake` crate
+    // documentation that suggest that it is the library directory, because they print it
+    // directly in a `rustc-link-search` directive.
+    //
+    // AND YET... looking at it myself, I see that it is not the lib directory, but rather the
+    // install prefix, i.e. `env!(OUT_DIR)`!!  And even more strangely, dynamic libraries are
+    // installed to $dir/lib64, while static libraries are installed to... $dir/build!?!
+    // Where on earth is that even coming from...?
     let lib_dir = PathDir::new(cmake.build())?;
 
-    println!("cargo:rustc-link-search=native={}", lib_dir.display());
-    println!("cargo:rustc-link-lib=static=lammps");
+    // FIXME: is lib64 portable? Probably not?
+    println!("cargo:rustc-link-search=native={}/lib64", lib_dir.display());
+    println!("cargo:rustc-link-lib=lammps");
 
-    // FIXME: Does this cause problems for other crates that need libstdc++?
-    //        Should there be a stdcpp-sys crate just for this?
-    // NOTE: This is only needed for static builds.
-    println!("cargo:rustc-flags=-l stdc++");
+//  // FIXME: Does this cause problems for other crates that need libstdc++?
+//  //        Should there be a stdcpp-sys crate just for this?
+//  // NOTE: This is only needed for static builds.
+//    println!("cargo:rustc-flags=-l stdc++");
 
+    include_dirs.0.push(CcFlag::IncludeDir(lmp_dir.into()));
     Ok(BuildMeta {
         header: "src/library.h",
-        include_dirs: CcFlags(vec![CcFlag::IncludeDir(lmp_dir.into())]),
+        include_dirs,
         defines,
     })
 }

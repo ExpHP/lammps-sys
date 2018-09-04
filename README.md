@@ -88,6 +88,8 @@ LAMMPS (31 Mar 2017)
 Total wall time: 0:00:00
 ```
 
+Be sure to try this using the environment variables and `--features` that you plan to enable in your own project.
+
 ## License
 
 Like Lammps, `lammps-sys` is licensed under the (full) GNU GPL v3.0. Please see the file [`COPYING`](COPYING) for more details.

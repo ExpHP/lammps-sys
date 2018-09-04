@@ -5,8 +5,11 @@ authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 links = "lammps"
 build = "build/main.rs"
 
+[dependencies]
+mpi-sys = { version = "0.1.2", optional = true }
+
 [build-dependencies]
-bindgen = "0.31"
+bindgen = "0.31.3" # currently held back by mpi-sys
 path_abs = { version = "0.3.16", default-features = false }
 walkdir = "2.1.4"
 extension-trait = "0.1.2"
@@ -32,6 +35,12 @@ user-omp = ["package-user-omp"]
 # + `lammps_has_error`
 # + `lammps_get_last_error_message`
 exceptions = []
+
+# Links against the system implementation of MPI.
+#
+# Exposes the following additional bindings:
+# + `lammps_open`
+mpi = ["mpi-sys"]
 
 #-----------------------------
 # Package flags
@@ -108,6 +117,3 @@ package-user-sph = []
 package-user-tally = []
 package-user-uef = []
 package-user-vtk = []
-
-[dev-dependencies]
-cmake = "0.1.33"

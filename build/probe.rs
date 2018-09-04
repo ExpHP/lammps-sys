@@ -57,7 +57,7 @@ fn probe_and_link_via_pkgconfig() -> Result<BuildMeta, ProbeError> {
 
     Ok(BuildMeta {
         // The CMakeFile thankfully appears to install the header under a sane, unambiguous path.
-        // (fortituously the same one chosen by lammps-sys 0.3.x!)
+        // (fortuitously the same one chosen by lammps-sys 0.3.x!)
         header: "lammps/library.h",
         include_dirs,
         defines,

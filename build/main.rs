@@ -61,11 +61,9 @@ fn _main_link_library() -> PanicResult<BuildMeta> {
 
 // ----------------------------------------------------
 
-// Information discovered during the build that is
-// needed during bindgen.
+// Information discovered during the build that is needed during bindgen.
 struct BuildMeta {
-    // "lammps/library.h" or similar. (It is not available under that path when building directly
-    //  from source, so some adjustments are needed)
+    // Path for an #include directive.
     header: &'static str,
     // A bunch of -I arguments
     include_dirs: CcFlags,
@@ -76,8 +74,9 @@ struct BuildMeta {
 // ----------------------------------------------------
 
 fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
-    let BuildMeta { header, include_dirs, defines } = meta;
+    let BuildMeta { header, mut include_dirs, defines } = meta;
 
+    let lmp_dir = ::build::lammps_repo_dir();
     let out_path = PathDir::new(env::expect("OUT_DIR"))?;
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
@@ -88,8 +87,18 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
         &format!(r##"#include <{}>"##, header),
     );
 
-    // Ensure that the header contains the right features corresponding
-    // to what was enabled (e.g. `LAMMPS_EXCEPTIONS`).
+    // let bindgen find the mpi.h from the "MPI STUBS" library.
+    //
+    // It doesn't matter whether or not this is what LAMMPS was built against, since we
+    // won't be exposing the relevant bindings.
+    include_dirs.0.push(CcFlag::IncludeDir(lmp_dir.join("src").join("STUBS").into()));
+
+    // HACK: Thanks to https://github.com/rust-lang/cargo/issues/5237
+    //       we cannot update our bindgen dependency to a version with `blacklist_function`
+    //       until mpi-sys updates its own dependency.  However, thanks to a bug in bindgen
+    //       v0.31, we can use `blacklist_type` to accomplish the same effect.
+    gen = gen.blacklist_type("lammps_open");
+
     gen = gen.clang_args(defines.to_args());
     gen = gen.clang_args(include_dirs.to_args());
 
@@ -183,15 +192,14 @@ mod env {
             "auto" => Mode::Auto,
             "system" => Mode::SystemOnly,
             "build" => Mode::BuildOnly,
-            s => panic!("Bad value for RUST_LAMMPS_SOURCE: {}", s)
+            s => panic!("Bad value for RUST_LAMMPS_SOURCE: {}", s),
         }
     }
 
     // For vars that cargo provides, like OUT_DIR.
     // This doesn't do "rerun-if-env-changed".
     pub fn expect(var: &str) -> String {
-        env::var(var)
-           .unwrap_or_else(|e| panic!("error reading {}: {}", var, e))
+        env::var(var).unwrap_or_else(|e| panic!("error reading {}: {}", var, e))
     }
 
     fn get_rerun_nonempty(s: &str) -> Option<String> {
