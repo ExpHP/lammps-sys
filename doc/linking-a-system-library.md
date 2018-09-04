@@ -52,18 +52,13 @@ $
 
 ## Linking MPI
 
-`lammps-sys` currently expects MPI to be available in the system paths, which is perhaps slightly unconventional:
+To enable MPI, "simply" enable the `"mpi"` cargo feature.  When enabled, `lammps-sys` exposes additional functions whose signatures involve MPI types; these will be assigned types from the `mpi-sys` crate, for compatibility with the `mpi` crate.
 
-* `mpi.h` must be somewhere in `C_INCLUDE_PATH`.
-* `libmpi.so` must be somewhere in `LIBRARY_PATH`.
+The library must have been built against the same implementation of MPI that is currently associated with the `mpicc` compiler wrapper.  Otherwise, you will have a not-so-fun time (read: segfaults).  For a small amount of increased confidence, try building the MPI link test:
 
-The type of `MPI_Comm` will be included in the bindings, but nothing else will be; you should probably separately depend on a crate like `mpi-sys` for a complete set of MPI bindings.
-
-Unfortunately, in some MPI implementations such as OpenMPI (which defines `MPI_Comm` as `*ompi_communicator_t`), the `MPI_Comm` from `lammps-sys` and `mpi-sys` will be considered distinct types.  A future version of `lammps-sys` may resolve this by direct integration with the `mpi-sys` crate... but for now, you will likely need to use `mem::transmute` to unsafely cast between the two `MPI_Comm` types.
-
-### `mpi_stubs`
-
-**Linking a system Lammps library that uses `mpi_stubs` has not been tested.**  However, it can probably be done by adding `-lmpi_stubs` to the pkgconfig file, and putting `libmpi_stubs.so` in the installation `lib` dir.  If you need help or have more information, [please open an issue](https://github.com/ExpHP/lammps-sys/issues).
+```
+cargo run --example=mpi-test --features=mpi
+```
 
 ## Dealing with missing features
 
@@ -72,7 +67,5 @@ There is, of course, the issue that the system lammps library may have been buil
 `lammps-sys` will perform a small number of sanity checks on the system library before deciding to use it (such as making sure `-DLAMMPS_EXCEPTIONS` was supplied if you activate the `exceptions` feature).  However, these checks are far from comprehensive.
 
 Unfortunately, **there is currently no way for `lammps-sys` to verify that the system `liblammps` includes optional packages like `MANYBODY`.**  Even if you activate the corresponding cargo features, it will happily link a library that is missing these packages, and this error will go entirely unnoticed until the program fails at runtime when it tries to use fixes or potentials from the package.
-
-Similarly, you will very likely have a not-so-fun time (read: segmentation faults) if you try to enable the `"mpi"` cargo feature when linking against a system lammps library that was not built against the same implementation reported by `mpicc --show`.
 
 For now, if the situation arises that there is a system lammps library which you cannot or do not wish to use, it is recommended that you set `RUST_LAMMPS_SOURCE=build` in your environment to disable the system library search.
