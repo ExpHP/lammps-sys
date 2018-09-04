@@ -21,7 +21,8 @@ Example of a suitable installation: (assuming an installation path of `$HOME/.lo
         └── liblammps.pc
 ```
 
-```pkgconfig
+**`liblammps.pc`**
+```
 prefix=/home/lampam/.local
 libdir=$prefix/lib
 includedir=$prefix/include
