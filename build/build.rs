@@ -17,7 +17,12 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
     let mut defines = CcFlags(vec![]);
     let mut include_dirs = CcFlags(vec![]);
 
+    // Override the value from `include(GNUInstallDirs)` (which might be lib or lib64 or etc.)
+    // with a fixed destination for easier linking.
+    cmake.define("CMAKE_INSTALL_LIBDIR", "lib");
+
     cmake.define("BUILD_LIB", "yes");
+
     // NOTE: Building shared because I don't trust the static builds to work.
     //
     // (see the note below about libraries appearing in CMAKE_INSTALL_PREFIX/build, of all places--
@@ -31,6 +36,14 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
         cmake.define(key, "yes");
     }
 
+    if cfg!(feature = "package-user-omp") {
+        // The CMakeLists.txt in stable_22Aug2018 has a bug in that it forgets to set this.
+        // This appears to be fixed on master.
+        cmake.cxxflag("-DLMP_USER_OMP");
+    }
+    cmake.define("CMAKE_RULE_MESSAGES:BOOL", "OFF");
+    cmake.define("CMAKE_VERBOSE_MAKEFILE:BOOL", "ON");
+
     cmake.define("BUILD_MPI", match cfg!(feature = "mpi") {
         true => "yes",
         false => "no",
@@ -41,20 +54,8 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
         defines.0.push(CcFlag::Define("LAMMPS_EXCEPTIONS".into()));
     }
 
-    // FIXME: I'm seriously confused about what cmake.build() is supposed to return.
-    //
-    // It isn't explicitly documented anywhere, but there are examples in the `cmake` crate
-    // documentation that suggest that it is the library directory, because they print it
-    // directly in a `rustc-link-search` directive.
-    //
-    // AND YET... looking at it myself, I see that it is not the lib directory, but rather the
-    // install prefix, i.e. `env!(OUT_DIR)`!!  And even more strangely, dynamic libraries are
-    // installed to $dir/lib64, while static libraries are installed to... $dir/build!?!
-    // Where on earth is that even coming from...?
     let lib_dir = PathDir::new(cmake.build())?;
-
-    // FIXME: is lib64 portable? Probably not?
-    println!("cargo:rustc-link-search=native={}/lib64", lib_dir.display());
+    println!("cargo:rustc-link-search=native={}/lib", lib_dir.display());
     println!("cargo:rustc-link-lib=lammps");
 
 //  // FIXME: Does this cause problems for other crates that need libstdc++?

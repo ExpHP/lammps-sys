@@ -6,7 +6,7 @@ Under the default settings, if a system library cannot be found, `lammps-sys` wi
 
 ### Enabling OpenMP
 
-If I'm reading the CMakeLists.txt file correctly... enabling `package-user-omp` should be enough to ensure that LAMMPS gets built with OpenMP.  The trouble is what happens on the rust side of things, *after* LAMMPS is built.
+Enabling `package-user-omp` should be enough to ensure that LAMMPS gets built with OpenMP.  The trouble is what happens on the rust side of things, *after* LAMMPS is built.
 
 If you get errors during the linking stage about undefined symbols from `omp_`, you may try adding the following to your `~/.cargo/config` (or to a `.cargo/config` in your own crate's directory):
 
