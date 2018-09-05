@@ -28,7 +28,9 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
     // (see the note below about libraries appearing in CMAKE_INSTALL_PREFIX/build, of all places--
     //  and when I went to go build a static LAMMPS on my own just to investigate, it successfully
     //  installed no library at all! Nothing but an `/etc` and a `/share`!
-    //  This is all on stable_22Aug2018.)
+    //
+    //  NOTE: This was all on stable_22Aug2018, and might be fixed on patch_31Aug2018;
+    //  I haven't tested yet.)
     cmake.define("BUILD_SHARED_LIBS", "yes");
     cmake.define("BUILD_EXE", "no");
 
@@ -36,11 +38,6 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
         cmake.define(key, "yes");
     }
 
-    if cfg!(feature = "package-user-omp") {
-        // The CMakeLists.txt in stable_22Aug2018 has a bug in that it forgets to set this.
-        // This appears to be fixed on master.
-        cmake.cxxflag("-DLMP_USER_OMP");
-    }
     cmake.define("CMAKE_RULE_MESSAGES:BOOL", "OFF");
     cmake.define("CMAKE_VERBOSE_MAKEFILE:BOOL", "ON");
 

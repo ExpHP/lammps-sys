@@ -12,10 +12,7 @@ The search for a system library can be disabled by setting `RUST_LAMMPS_SOURCE=b
 
 If you want cmake to install headers and the pkgconfig file, you'll need to supply `-DBUILD_LIB=yes -DBUILD_SHARED_LIBS=yes` to the initial `cmake` command. (notice that it does not install headers or pkgconfig info when building a static library).
 
-If you are building from the `stable_22Aug2018` release, be aware that it shipped with some bugs in its CMakeLists.txt:
-
- * When enabling `-DPKG_USER-OMP`, you should also `export CXXFLAGS=-DLMP_USER_OMP`. (the CMakeLists.txt in this version forgets to do so)
- * The `Libs:` line in `liblammps.pc` may end up with a trailing `@` symbol; delete it if you see it.
+If you're going the cmake route, you are advised not to use `stable_22Aug2018` release.  It has numerous bugs in its CMakeLists.txt that are fixed in the `patch_31Aug2018` release, such as incomplete definitions for `PKG_USER-OMP`, and a trailing `@` in the `liblammps.pc` file.
 
 ### Example installation
 
