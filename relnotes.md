@@ -1,7 +1,13 @@
 # `lammps-sys` release notes
-## v0.5.0 (Feb 27 2018)
-- Add features for all packages.
-- Remove default feature for `exceptions`. Default features are too hard to disable.
+## v0.5.0 (unreleased)
+- Update automatically-built LAMMPS version to `FIXME TODO`
+- Added back the ability to use prebuilt libs.  This is automatically supported through `pkg-config`, though you probably need to set up a `liblammps.pc` file (see the files in `doc/` for assistance).
+- `lammps-sys` now internally uses the CMake build system recently added to LAMMPS, rather than the classic Makefile build system.
+- Removed the `RUST_LAMMPS_MAKEFILE` environment variable, which is no longer relevant with the new CMake-based builds.
+- Added back MPI support.  There is now an `"mpi"` feature which enables the binding for `lammps_open`, and links to the `mpi-sys` crate. This is a great deal more reliable than v0.3.0's `"system-mpi"` feature, so don't be afraid to use it!
+- Added a feature for every package. These are almost entirely untested; please report bugs!
+- Remove default feature for `"exceptions"`. Default features are too hard to disable.
+- Removed the `"bigbig"` feature, which did not make sense as a feature.  If you need it, build lammps as a shared library (and make sure `-DLAMMPS_BIGBIG` is present in the Makefile's `LMP_INC` and in the `cflags:` line of `liblammps.pc`)
 ## v0.4.0 (Feb 27 2018)
 - Automatically builds LAMMPS from source now.
 - Completely different building model.  Formerly, only dynamic was supported; now, only static is supported.
