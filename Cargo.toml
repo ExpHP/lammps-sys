@@ -1,7 +1,16 @@
 [package]
 name = "lammps-sys"
-version = "0.5.0-pre.0"
+# Remember to update README.md, and html_root_url!
+version = "0.5.0"
+description = "Generates bindings to LAMMPS' C interface (with optional builds from source)"
+
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
+license = "GPL-3.0"
+license-file = "COPYING"
+repository = "https://github.com/ExpHP/lammps-sys"
+keywords = ["ffi", "physics", "molecular dynamics", "materials"]
+categories = ["science"]
+
 links = "lammps"
 build = "build/main.rs"
 
