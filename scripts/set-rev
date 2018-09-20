@@ -43,6 +43,10 @@ def lammps_git_tag_from_datetime(style, dt):
     return '{}_{}{}{}'.format(style, dt.day, month, dt.year)
 
 def cmd_checkout_for_submodule(commit_or_tag):
+    subprocess.check_call(
+        ['git', 'fetch', "--tags"],
+        cwd=os.path.join(LAMMPS_REPO_DIR),
+    )
     return subprocess.check_call(
         ['git', 'checkout', commit_or_tag],
         cwd=os.path.join(LAMMPS_REPO_DIR),
