@@ -12,7 +12,7 @@ The search for a system library can be disabled by setting `RUST_LAMMPS_SOURCE=b
 
 If you want cmake to install headers and the pkgconfig file, you'll need to supply `-DBUILD_LIB=yes -DBUILD_SHARED_LIBS=yes` to the initial `cmake` command. (notice that it does not install headers or pkgconfig info when building a static library).
 
-If you're going the cmake route, you are advised not to use `stable_22Aug2018` release.  It has numerous bugs in its CMakeLists.txt that are fixed in the `patch_31Aug2018` release, such as incomplete definitions for `PKG_USER-OMP`, and a trailing `@` in the `liblammps.pc` file.
+If you're going the cmake route, you are advised not to use `stable_22Aug2018` release.  It has numerous bugs in its CMakeLists.txt that are fixed in the following patch releases, such as a dysfunctional `PKG_USER-OMP`, and a trailing `@` in the `liblammps.pc` file.  The first "good" release is `patch_18Sep2018`.
 
 ### Example installation
 
@@ -72,6 +72,6 @@ There is, of course, the issue that the system lammps library may have been buil
 
 `lammps-sys` will perform a small number of sanity checks on the system library before deciding to use it (such as making sure `-DLAMMPS_EXCEPTIONS` was supplied if you activate the `exceptions` feature).  However, these checks are far from comprehensive.
 
-Unfortunately, **there is currently no way for `lammps-sys` to verify that the system `liblammps` includes optional packages like `MANYBODY`.**  Even if you activate the corresponding cargo features, it will happily link a library that is missing these packages, and this error will go entirely unnoticed until the program fails at runtime when it tries to use fixes or potentials from the package.
+**`lammps-sys` does not currently verify that the system `liblammps` includes optional packages like `MANYBODY`.**  Even if you activate the corresponding cargo features, it will happily link a library that is missing these packages, and this error will go entirely unnoticed until the program fails at runtime when it tries to use the package.  This papercut may be fixed in the future.
 
-For now, if the situation arises that there is a system lammps library which you cannot or do not wish to use due to such reasons, it is recommended that you set `RUST_LAMMPS_SOURCE=build` in your environment to disable the system library search.
+For now, if the situation arises that there is a system lammps library which you cannot or do not wish to use, it is recommended that you set `RUST_LAMMPS_SOURCE=build` in your environment to disable the system library search.

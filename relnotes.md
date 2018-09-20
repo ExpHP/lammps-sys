@@ -1,6 +1,6 @@
 # `lammps-sys` release notes
-## v0.5.0 (unreleased)
-- Update automatically-built LAMMPS version to `FIXME TODO`
+## v0.5.0 (Sep 18 2018)
+- Update automatically-built LAMMPS version to `patch_18Sep2018`.
 - Added back the ability to use prebuilt libs.  This is automatically supported through `pkg-config`, though you probably need to set up a `liblammps.pc` file (see the files in `doc/` for assistance).
 - `lammps-sys` now internally uses the CMake build system recently added to LAMMPS, rather than the classic Makefile build system.
 - Removed the `RUST_LAMMPS_MAKEFILE` environment variable, which is no longer relevant with the new CMake-based builds.
