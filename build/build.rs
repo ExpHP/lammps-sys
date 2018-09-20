@@ -86,13 +86,13 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
     //       ...but cargo does not handle submodules normally when the
     //       crate is built as an external dependency, so we must be
     //       equipped to handle both cases.
-    let mut path = lammps_repo_dir().join(".git");
+    let path = lammps_repo_dir().join(".git");
     if !path.exists() {
         // 'cargo vendor' doesn't even put a .git there
         return Ok(None);
     }
 
-    let path = path.canonicalize()?;
+    let mut path = path.canonicalize()?;
     while path.is_file() {
         let text = ::std::fs::read_to_string(&path)?;
         let line = text.lines().next().expect("empty .git file!");
