@@ -79,14 +79,20 @@ pub(crate) fn lammps_repo_dir() -> PathDir {
     PathDir::new(SUBMODULE_PATH).expect(msg)
 }
 
-/// Path to the .git directory for the lammps submodule.
-pub(crate) fn lammps_dotgit_dir() -> BoxResult<PathDir> {
+/// Path to the .git directory for the lammps submodule, if there is one
+pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
     // HACK: git submodules handled normally have a ".git file"
     //       containing the path to the true .git.
     //       ...but cargo does not handle submodules normally when the
     //       crate is built as an external dependency, so we must be
     //       equipped to handle both cases.
-    let mut path = lammps_repo_dir().join(".git").canonicalize()?;
+    let mut path = lammps_repo_dir().join(".git");
+    if !path.exists() {
+        // 'cargo vendor' doesn't even put a .git there
+        return Ok(None);
+    }
+
+    let path = path.canonicalize()?;
     while path.is_file() {
         let text = ::std::fs::read_to_string(&path)?;
         let line = text.lines().next().expect("empty .git file!");
@@ -96,7 +102,7 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<PathDir> {
 
         path = PathArc::new(path.parent().unwrap()).join(line.trim()).canonicalize()?;
     }
-    Ok(PathDir::new(path)?)
+    Ok(Some(PathDir::new(path)?))
 }
 
 /// Path to the directory within the lammps submodule that contains CMakeLists.txt.

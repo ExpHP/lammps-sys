@@ -122,9 +122,10 @@ fn _main_print_reruns() -> PanicResult<()> {
     // there and you shouldn't be touching it anyways.
     //
     // ...but we will rebuild in response to checking out a new commit for the submodule.
-    let git_dir = build::lammps_dotgit_dir()?;
-    assert!(git_dir.join("HEAD").exists());
-    rerun_if_changed(git_dir.join("HEAD").display());
+    if let Some(git_dir) = build::lammps_dotgit_dir()? {
+        assert!(git_dir.join("HEAD").exists());
+        rerun_if_changed(git_dir.join("HEAD").display());
+    }
 
     rerun_if_changed("Cargo.toml");
     rerun_if_changed_recursive("src".as_ref())?;
