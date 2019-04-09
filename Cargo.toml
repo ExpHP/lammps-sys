@@ -8,7 +8,7 @@ authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
 license = "GPL-3.0"
 license-file = "COPYING"
 repository = "https://github.com/ExpHP/lammps-sys"
-keywords = ["ffi", "physics", "molecular dynamics", "materials"]
+keywords = ["ffi", "physics", "molecular-dynamics", "materials"]
 categories = ["science"]
 
 links = "lammps"
