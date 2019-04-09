@@ -4,21 +4,13 @@ Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-sc
 
 ## Usage
 
-`lammps-sys` is still not yet on crates.io due to technical difficulties.  Use a github dependency:
-
-```toml
-[dependencies.lammps-sys]
-git = { "https://github.com/ExpHP/lammps-sys" }
-tag = "v0.5.0"
-```
+`lammps-sys` is available on crates.io! (actually *seriously* this time).
 
 <!-- Please remember to update ALL TOML examples, not just this one! -->
-<!--
 ```toml
 [dependencies]
-lammps-sys = "0.5"
+lammps-sys = "0.5.1"
 ```
--->
 
 ## Docs
 

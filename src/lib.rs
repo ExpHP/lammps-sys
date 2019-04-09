@@ -1,5 +1,5 @@
 #![allow(bad_style)]
-#![doc(html_root_url = "https://docs.rs/lammps-sys/0.5.0")]
+#![doc(html_root_url = "https://docs.rs/lammps-sys/0.5.1")]
 
 //! Automatically-generated bindings for lammps, using bindgen.
 
