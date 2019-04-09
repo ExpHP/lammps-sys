@@ -15,7 +15,17 @@ links = "lammps"
 build = "build/main.rs"
 
 exclude = [
+    # Illegal characters in filenames for a .crate file
     "/lammps/lib/kokkos/core/src/eti/ROCm/*",
+    # Large files too big for a .crate
+    "/lammps/examples/*",
+    "/lammps/bench/*",
+    "/lammps/doc/*",
+    "/lammps/lib/kokkos/doc*",
+    "/lammps/lib/qmmm/example-*/*",
+    "/lammps/tools/*",
+    "/lammps/python/examples/*",
+    "/lammps/potentials/*",
 ]
 
 [dependencies]
