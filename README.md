@@ -1,5 +1,10 @@
 # `lammps-sys`
 
+[![License](https://img.shields.io/crates/l/lammps-sys.svg)](COPYING)
+[![Documentation](https://docs.rs/lammps-sys/badge.svg)](https://docs.rs/lammps-sys)
+[![Crates.io Version](https://img.shields.io/crates/v/lammps-sys.svg)](https://crates.io/crates/lammps-sys)
+<!-- [![Build Status](https://travis-ci.org/ExpHP/lammps-sys.svg?branch=master)](https://travis-ci.org/ExpHP/lammps-sys) -->
+
 Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-scale Atomic/Molecular Massively Parallel Simulator.*](http://lammps.sandia.gov/)
 
 ## Usage
