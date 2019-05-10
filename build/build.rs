@@ -3,7 +3,9 @@
 use ::{BoxResult, PanicResult};
 use ::{BuildMeta, CcFlag, CcFlags};
 use ::std::process::{Command, Stdio};
-use ::path_abs::{PathArc, PathDir};
+use ::std::path::Path;
+use ::path_abs::{PathArc, PathDir, PathFile};
+use ::walkdir::WalkDir;
 
 const SUBMODULE_PATH: &'static str = "lammps";
 
@@ -11,7 +13,7 @@ const SUBMODULE_PATH: &'static str = "lammps";
 
 /// Build lammps from source and emit linker flags
 pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
-    let lmp_dir = lammps_repo_dir();
+    let lmp_dir = lammps_repo_dir_build_copy()?;
 
     let mut cmake = ::cmake::Config::new(lammps_cmake_root()?);
     let mut defines = CcFlags(vec![]);
@@ -70,7 +72,66 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
 
 // ----------------------------------------------------
 
-/// Path to the lammps git submodule
+/// HACK:
+/// See https://users.rust-lang.org/t/cargo-exclude-all-contents-of-a-directory-but-keep-the-directory/28137
+///
+/// Create a dedicated copy of the lammps directory for building.
+///
+/// The copy will be modified in such a way to ensure that the build succeeds.
+///
+/// **None of this should be necessary once there is a way to specify in cargo that
+/// a directory should be preserved while its contents are ignored.**
+pub(crate) fn lammps_repo_dir_build_copy() -> PanicResult<PathDir> {
+    let src_dir = lammps_repo_dir();
+
+    let copy = PathDir::create(::env::out_dir().join("lammps"))?;
+
+    let suffix = |entry: &walkdir::DirEntry| {
+        entry.path().strip_prefix(&src_dir).unwrap_or_else(|e| panic!("{}", e)).to_owned()
+    };
+
+    // Make the copy.
+    let walker = {
+        WalkDir::new(&src_dir)
+            .follow_links(true)
+            .into_iter()
+            .filter_entry(|entry| {
+                // Save space on local builds by filtering out some of the worst offenders
+                // on the exclude list from Cargo.toml.
+                // (this does nothing for builds from crates.io)
+                let blacklist = &[
+                    Path::new("examples"),
+                    Path::new("bench"),
+                    Path::new("doc/src"),
+                    Path::new("doc/util"),
+                    Path::new("tools"),
+                    Path::new("potentials"),
+                ];
+
+                !blacklist.contains(&suffix(&entry).as_ref())
+            })
+    };
+    for entry in walker {
+        let entry = entry?;
+        let dest = copy.join(suffix(&entry));
+
+        let ty = entry.file_type();
+        if ty.is_file() {
+            PathFile::new(entry.path()).unwrap_or_else(|e| panic!("{}", e)).copy(dest)?;
+        } else if ty.is_dir() {
+            PathDir::create(dest)?;
+        }
+    }
+
+    // And now for the whole entire point of this function:
+    //
+    // The potentials/ directory needs to exist, but it does not exist
+    // in the packaged crate file on crates.io.
+    PathDir::create(copy.join("potentials"))?;
+
+    Ok(copy)
+}
+
 pub(crate) fn lammps_repo_dir() -> PathDir {
     // This library might do bad things if lmp_dir is a symlink,
     // due to path canonicalization...
@@ -86,6 +147,9 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
     //       ...but cargo does not handle submodules normally when the
     //       crate is built as an external dependency, so we must be
     //       equipped to handle both cases.
+    //
+    // We need the raw one here (not the copy in OUT_DIR) so we can correctly interpret
+    // relative paths.
     let path = lammps_repo_dir().join(".git");
     if !path.exists() {
         // 'cargo vendor' doesn't even put a .git there
