@@ -77,7 +77,7 @@ fn _main_gen_bindings(meta: BuildMeta) -> PanicResult<()> {
     let BuildMeta { header, mut include_dirs, defines } = meta;
 
     let lmp_dir = ::build::lammps_repo_dir();
-    let out_path = PathDir::new(env::expect("OUT_DIR"))?;
+    let out_path = env::out_dir();
 
     let _ = ::std::fs::create_dir(out_path.join("codegen"));
 
@@ -195,6 +195,10 @@ mod env {
             "build" => Mode::BuildOnly,
             s => panic!("Bad value for RUST_LAMMPS_SOURCE: {}", s),
         }
+    }
+
+    pub fn out_dir() -> PathDir {
+        PathDir::new(expect("OUT_DIR")).unwrap_or_else(|e| panic!("{}", e))
     }
 
     // For vars that cargo provides, like OUT_DIR.

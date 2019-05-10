@@ -1,7 +1,7 @@
 [package]
 name = "lammps-sys"
 # Remember to update README.md, and html_root_url!
-version = "0.5.1"
+version = "0.5.2"
 description = "Generates bindings to LAMMPS' C interface (with optional builds from source)"
 
 authors = ["Michael Lamparski <diagonaldevice@gmail.com>"]
@@ -21,7 +21,8 @@ exclude = [
     # Large files too big for a .crate
     "/lammps/examples/*",
     "/lammps/bench/*",
-    "/lammps/doc/*",
+    "/lammps/doc/src/*",
+    "/lammps/doc/utils/*",
     "/lammps/lib/kokkos/doc*",
     "/lammps/lib/qmmm/example-*/*",
     "/lammps/tools/*",

@@ -1,4 +1,6 @@
 # `lammps-sys` release notes
+## v0.5.2 (May 10 2019)
+- Fix automatic builds to actually work when using the crate files published to crates.io. (oops!)
 ## v0.5.1 (April 9 2019)
 - Fix readme display on crates.io
 ## v0.5.0 (Nov 21 2018)
