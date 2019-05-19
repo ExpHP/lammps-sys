@@ -178,7 +178,8 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
 pub(crate) fn lammps_cmake_root() -> BoxResult<PathDir> {
     let cmake_root = lammps_repo_dir_build_copy()?.join("cmake");
     Ok(PathDir::new(cmake_root.canonicalize().map_err(|_| {
-        format!("could not resolve {:?}, you probably forgot to `git submodule update --init`", cmake_root)
+        format!("could not resolve {:?}, you probably forgot to `git submodule update --init`\n"
+                + "note that you might need to run cargo clean after doing so.", cmake_root)
     })?)?)
 }
 
