@@ -176,7 +176,9 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
 
 /// Path to the directory within the lammps submodule that contains CMakeLists.txt.
 pub(crate) fn lammps_cmake_root() -> BoxResult<PathDir> {
-    Ok(PathDir::new(lammps_repo_dir_build_copy()?.join("cmake").canonicalize()?)?)
+    Ok(PathDir::new(lammps_repo_dir_build_copy()?.join("cmake").canonicalize().map_err(|_| {
+        format!("could not resolve {:?}/cmake, you probably forgot to `git submodule update --init`", lammps_repo_dir())
+    })?)?)
 }
 
 // ----------------------------------------------------
