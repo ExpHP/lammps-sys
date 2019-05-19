@@ -177,7 +177,7 @@ pub(crate) fn lammps_dotgit_dir() -> BoxResult<Option<PathDir>> {
 /// Path to the directory within the lammps submodule that contains CMakeLists.txt.
 pub(crate) fn lammps_cmake_root() -> BoxResult<PathDir> {
     // NOTE: This first line will succeed even if the submodule isn't initialized because
-    //       git still will have created an empty directory.
+    //       git still will have created an empty lammps/ directory.
     let cmake_root = lammps_repo_dir_build_copy()?.join("cmake");
     Ok(PathDir::new(cmake_root.canonicalize().map_err(|_| {
         format!("could not resolve {:?}, you probably forgot to `git submodule update --init`", cmake_root)
