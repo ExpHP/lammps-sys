@@ -27,6 +27,7 @@ If you just want to see the rust signatures for the bindings, you can also gener
 ```
 git clone https://github.com/ExpHP/lammps-sys
 cd lammps-sys
+git submodule update --init
 cargo doc --open
 ```
 
@@ -85,6 +86,8 @@ For an easier time diagnosing building/linking issues, you can clone this repo a
 ```sh
 $ git clone https://github.com/ExpHP/lammps-sys
 $ cd lammps-sys
+$ # note: submodule update is only needed when building lammps from source
+$ git submodule update --init
 $ cargo run --example=link-test
 LAMMPS (31 Mar 2017)
 Total wall time: 0:00:00
