@@ -30,8 +30,8 @@ If you're going the cmake route, you are advised not to use `stable_22Aug2018` r
 **`liblammps.pc`**
 ```
 prefix=/home/lampam/.local
-libdir=$prefix/lib
-includedir=$prefix/include
+libdir=${prefix}/lib
+includedir=${prefix}/include
 
 Name: liblammps
 Description: Large-scale Atomic/Molecular Massively Parallel Simulator Library
