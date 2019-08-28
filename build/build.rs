@@ -19,8 +19,7 @@ pub(crate) fn build_from_source_and_link() -> PanicResult<BuildMeta> {
     let mut defines = CcFlags(vec![]);
     let mut include_dirs = CcFlags(vec![]);
 
-    // Override the value from `include(GNUInstallDirs)` (which might be lib or lib64 or etc.)
-    // with a fixed destination for easier linking.
+    // Guarantee that the lib dir is `lib` and not e.g. `lib64`.
     cmake.define("CMAKE_INSTALL_LIBDIR", "lib");
 
     cmake.define("BUILD_LIB", "yes");
@@ -182,22 +181,4 @@ pub(crate) fn lammps_cmake_root() -> BoxResult<PathDir> {
     Ok(PathDir::new(cmake_root.canonicalize().map_err(|_| {
         format!("could not resolve {:?}, you probably forgot to `git submodule update --init`", cmake_root)
     })?)?)
-}
-
-// ----------------------------------------------------
-
-extension_trait!{
-    CommandExt for Command {
-        fn run_custom(&mut self) -> PanicResult<()> {
-            eprintln!("Running: {:?}", self);
-            // the global stdout is for cargo.
-            // FIXME: what if stdout has useful info...?
-            assert!(self.stdout(Stdio::null()).status()?.success());
-            Ok(())
-        }
-
-        fn with_mut<F>(mut self, f: F) -> Self
-        where F: FnOnce(&mut Self) -> &mut Self,
-        { f(&mut self); self }
-    }
 }
