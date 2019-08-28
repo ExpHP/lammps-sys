@@ -1,5 +1,5 @@
 # `lammps-sys` release notes
-## v0.6.0 (unreleased)
+## v0.6.0 (Aug 28 2019)
 - Update to `stable_7Aug2019`, to "fix" builds for GCC 9.0. (unfortunately this disables OpenMP for that compiler).  The major version has been bumped in case any backwards incompatible changes occurred in LAMMPS.
 ## v0.5.2 (May 10 2019)
 - Fix automatic builds to actually work when using the crate files published to crates.io. (oops!)

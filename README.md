@@ -109,6 +109,6 @@ S. Plimpton, **Fast Parallel Algorithms for Short-Range Molecular Dynamics**, J 
 
 <!-- These links should all be maintained to point to the version
      of lammps that is built by `lammps-sys`                      -->
-[`src/MAKE`]: https://github.com/lammps/lammps/tree/patch_5Feb2018/src/MAKE
-[`library.cpp`]: https://github.com/lammps/lammps/blob/patch_5Feb2018/src/library.cpp
-[the lammps source]: https://github.com/lammps/lammps/tree/patch_5Feb2018
+[`src/MAKE`]: https://github.com/lammps/lammps/tree/stable_7Aug2019/src/MAKE
+[`library.cpp`]: https://github.com/lammps/lammps/blob/stable_7Aug2019/src/library.cpp
+[the lammps source]: https://github.com/lammps/lammps/tree/stable_7Aug2019
