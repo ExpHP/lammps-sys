@@ -14,7 +14,7 @@ Builds and generates Rust bindings for the C interface of LAMMPS, the [*Large-sc
 <!-- Please remember to update ALL TOML examples, not just this one! -->
 ```toml
 [dependencies]
-lammps-sys = "0.5.2"
+lammps-sys = "0.6.0"
 ```
 
 ## Docs
