@@ -2,7 +2,6 @@
 
 use ::{BoxResult, PanicResult};
 use ::{BuildMeta, CcFlag, CcFlags};
-use ::std::process::{Command, Stdio};
 use ::std::path::Path;
 use ::path_abs::{PathArc, PathDir, PathFile};
 use ::walkdir::WalkDir;

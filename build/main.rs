@@ -23,7 +23,7 @@ mod build;
 // ----------------------------------------------------
 
 use ::path_abs::{PathArc, PathDir, FileRead};
-type BoxResult<T> = Result<T, Box<std::error::Error>>;
+type BoxResult<T> = Result<T, Box<dyn std::error::Error>>;
 use ::walkdir::WalkDir;
 
 use ::std::path::Path;
