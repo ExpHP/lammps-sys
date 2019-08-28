@@ -2,7 +2,7 @@
 
 // Usage:
 //
-//     cargo run --example=omp-test --features=user-omp  [OTHER_CARGO_ARGS]...
+//     cargo run --example=omp-test --features=package-user-omp  [OTHER_CARGO_ARGS]...
 //
 // If this is your first time trying it, then *almost certainly* this will fail.
 // Some external setup IS required to make OpenMP work in `lammps-sys`.
