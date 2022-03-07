@@ -4,56 +4,58 @@
 
 The search for a system library can be disabled by setting `RUST_LAMMPS_SOURCE=build`, and the fallback of building from source can be disabled by setting `RUST_LAMMPS_SOURCE=system`.
 
-## Linking Lammps itself
+## How `lammps-sys` locates LAMMPS
 
-`lammps-sys` uses `pkg-config` to locate the LAMMPS C library.  The traditional way of building lammps does not install the library in any manner (or produce the requisite pkgconfig file), but you can set this up yourself.  Lammps also comes with cmake files, which will produce an *almost* working setup once installed.
-
-### Tips to building
-
-If you want cmake to install headers and the pkgconfig file, you'll need to supply `-DBUILD_LIB=yes -DBUILD_SHARED_LIBS=yes` to the initial `cmake` command. (notice that it does not install headers or pkgconfig info when building a static library).
-
-If you're going the cmake route, you are advised not to use `stable_22Aug2018` release.  It has numerous bugs in its CMakeLists.txt that are fixed in the following patch releases, such as a dysfunctional `PKG_USER-OMP`, and a trailing `@` in the `liblammps.pc` file.  The first "good" release is `patch_18Sep2018`.
-
-### Example installation
+`lammps-sys` uses `pkg-config` to locate LAMMPS.  Try running the following command to see what `lammps-sys` sees:
 
 ```
-/home/lampam/.local
-├── include
-│   └── lammps
-│       └── library.h
-└── lib
-    ├── liblammps.so
-    └── pkgconfig
-        └── liblammps.pc
+$ pkg-config --cflags --libs liblammps
+-DLAMMPS_SMALLBIG -DLAMMPS_EXCEPTIONS -I/home/lampam/data/opt/lammps/include -L/home/lampam/data/opt/lammps/lib -llammps
 ```
 
-**`liblammps.pc`**
-```
-prefix=/home/lampam/.local
-libdir=${prefix}/lib
-includedir=${prefix}/include
+Generally speaking, this means that:
 
-Name: liblammps
-Description: Large-scale Atomic/Molecular Massively Parallel Simulator Library
-URL: http://lammps.sandia.gov
-Version:
-Requires:
-Libs: -L${libdir} -llammps
-Libs.private: -lm
+* An appropriate `.pc` file must be installed.  (see the next section)
+* `PKG_CONFIG_PATH` must be set to locate the lib at build time.
+* `LD_LIBRARY_PATH` must be set to locate the lib at runtime, if it was built as a shared library.
 
-# The following flags should be present if and only if lammps was built with them:
-# - `-DLAMMPS_EXCEPTIONS`
-# - `-DLAMMPS_BIGBIG`
-Cflags: -I${includedir} -DLAMMPS_EXCEPTIONS
-```
+## Tips to building and installing LAMMPS
 
-To test it:
+* **Use [the `cmake` system](https://docs.lammps.org/Build_cmake.html) to build LAMMPS! Do not use the legacy in-tree Makefile system.**
+* Check in advance which features you need for the rust code you are building before calling cmake.  For instance, [rsp2](https://github.com/ExpHP/rsp2) requires `-DLAMMPS_EXCEPTIONS=yes -DPKG_MANYBODY=yes -DPKG_USER-MISC=yes` and possibly `-DPKG_USER-OMP=yes`.
+    * Older versions of the LAMMPS source tree may additionally require `-DBUILD_LIB=yes`.
+* Build a shared library (`-DBUILD_SHARED_LIBS=yes`).
+    * If you build a static library then LAMMPS' cmake configuration doesn't install the .pc file or headers and you will have to take care of these manually.
+
+## Example build
+
+Here is an example of how to build LAMMPS 17Feb2022, install it to `$HOME/opt/lammps`, and link to it from lammps-sys.
 
 ```sh
-$ export PKG_CONFIG_PATH=/home/lampam/.local/lib/pkgconfig:$PKG_CONFIG_PATH
-$ pkg-config --libs --cflags liblammps
--DLAMMPS_EXCEPTIONS -llammps
-$
+LAMMPS=$HOME/opt/lammps
+
+# Build and install lammps
+git clone https://github.com/lammps/lammps
+(
+    cd lammps
+    git checkout patch_17Feb2022
+    mkdir build
+    cd build
+    cmake -DLAMMPS_EXCEPTIONS=yes -DPKG_MANYBODY=yes -DPKG_USER-MISC=yes -DCMAKE_INSTALL_PREFIX=$LAMMPS -DBUILD_SHARED_LIBS=yes ../cmake
+    make -j32
+    make install
+)
+
+# Set environment
+export PKG_CONFIG_PATH=$LAMMPS/lib/pkgconfig:$PKG_CONFIG_PATH
+export LD_LIBRARY_PATH=$LAMMPS/lib:$LD_LIBRARY_PATH
+
+# Run the example link test
+git clone https://github.com/ExpHP/lammps-sys
+(
+    cd lammps-sys
+    cargo run --example=link-test
+)
 ```
 
 ## Linking MPI
